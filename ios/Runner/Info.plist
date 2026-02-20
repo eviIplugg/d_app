@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Нужен доступ к камере, чтобы сделать фото профиля.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Нужен доступ к фото, чтобы выбрать фото для профиля.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Нужен доступ, чтобы сохранять фото профиля.</string>
 </dict>
 </plist>

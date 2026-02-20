@@ -1,21 +1,27 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'gender_screen.dart';
+import '../../models/profile_draft.dart';
+import 'profile_flow_steps.dart';
 
 class BirthdateScreen extends StatefulWidget {
-  const BirthdateScreen({super.key});
+  final ProfileDraft draft;
+
+  const BirthdateScreen({super.key, required this.draft});
 
   @override
   State<BirthdateScreen> createState() => _BirthdateScreenState();
 }
 
 class _BirthdateScreenState extends State<BirthdateScreen> {
+  static const int _minAgeYears = 18;
   late DateTime _selectedDate;
   late FixedExtentScrollController _dayController;
   late FixedExtentScrollController _monthController;
   late FixedExtentScrollController _yearController;
   
-  int _selectedDayIndex = 25; // 26 день (индекс 25)
-  int _selectedMonthIndex = 9; // Октябрь
+  int _selectedDayIndex = 0;
+  int _selectedMonthIndex = 0;
   int _selectedYearIndex = 0;
 
   final List<String> _months = [
@@ -36,17 +42,19 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
   @override
   void initState() {
     super.initState();
-    // Устанавливаем начальную дату: 26 октября 2007 (18 лет)
-    _selectedDate = DateTime(2007, 10, 26);
-    _dayController = FixedExtentScrollController(initialItem: 25);
-    _monthController = FixedExtentScrollController(initialItem: 9); // Октябрь
+    _selectedDate = widget.draft.birthdate ?? DateTime(2007, 10, 26);
+    _selectedDayIndex = (_selectedDate.day - 1).clamp(0, 30);
+    _selectedMonthIndex = (_selectedDate.month - 1).clamp(0, 11);
+    _dayController = FixedExtentScrollController(initialItem: _selectedDayIndex);
+    _monthController = FixedExtentScrollController(initialItem: _selectedMonthIndex);
     _yearController = FixedExtentScrollController();
     
     // Устанавливаем позицию для года
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final currentYear = DateTime.now().year;
-      final maxYear = currentYear - 13;
-      final yearIndex = maxYear - 2007;
+      final maxYear = currentYear - _minAgeYears;
+      final targetYear = _selectedDate.year;
+      final yearIndex = maxYear - targetYear;
       if (yearIndex >= 0) {
         _yearController.jumpToItem(yearIndex);
         _selectedYearIndex = yearIndex;
@@ -73,17 +81,20 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
   }
 
   void _handleNext() {
-    // TODO: Сохранить дату рождения и перейти на следующий экран
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(builder: (context) => const GenderScreen()),
-    // );
+    final age = _calculateAge(_selectedDate);
+    if (age < _minAgeYears) return;
+
+    widget.draft.birthdate = _selectedDate;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => GenderScreen(draft: widget.draft)),
+    );
   }
 
   void _updateDate() {
     final now = DateTime.now();
     final currentYear = now.year;
-    final maxYear = currentYear - 13; // Минимум 13 лет
+    final maxYear = currentYear - _minAgeYears; // Минимум 18 лет
 
     final year = maxYear - _selectedYearIndex;
     final month = _selectedMonthIndex + 1;
@@ -112,12 +123,12 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
     final now = DateTime.now();
     final currentYear = now.year;
     final minYear = currentYear - 100;
-    final maxYear = currentYear - 13; // Минимум 13 лет
+    final maxYear = currentYear - _minAgeYears; // Минимум 18 лет
     final years = List.generate(maxYear - minYear + 1, (i) => maxYear - i);
     
     // Вычисляем количество дней в выбранном месяце и году
     final selectedYear = maxYear - _selectedYearIndex;
-    final selectedMonth = _selectedMonthIndex;
+    final selectedMonth = _selectedMonthIndex + 1;
     final daysInMonth = _getDaysInMonth(selectedYear, selectedMonth);
 
     return Scaffold(
@@ -126,7 +137,7 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
         child: Column(
           children: [
             // Header with progress bar
-            _buildHeader(step: 1, totalSteps: 4),
+            _buildHeader(step: 2, totalSteps: kProfileTotalSteps),
             // Main content
             Expanded(
               child: Padding(
@@ -245,6 +256,17 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
                         color: Color(0xFF81262B),
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    if (_calculateAge(_selectedDate) < _minAgeYears)
+                      const Text(
+                        'Пока рано — вернитесь,\nкогда исполнится 18',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.red,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -255,7 +277,7 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _handleNext,
+                  onPressed: _calculateAge(_selectedDate) < _minAgeYears ? null : _handleNext,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF81262B),
                     foregroundColor: Colors.white,

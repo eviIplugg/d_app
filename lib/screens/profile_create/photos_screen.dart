@@ -1,30 +1,134 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'about_me_screen.dart';
+import '../../models/profile_draft.dart';
+import 'photo_crop_screen.dart';
+import 'photo_permission_screen.dart';
+import 'photo_preview_screen.dart';
+import 'profile_flow_steps.dart';
 
 class PhotosScreen extends StatefulWidget {
-  const PhotosScreen({super.key});
+  final ProfileDraft draft;
+
+  const PhotosScreen({super.key, required this.draft});
 
   @override
   State<PhotosScreen> createState() => _PhotosScreenState();
 }
 
 class _PhotosScreenState extends State<PhotosScreen> {
-  final List<String?> _photos = List.filled(6, null);
   final int _mainPhotoIndex = 0;
+  final ImagePicker _picker = ImagePicker();
 
-  void _handlePhotoTap(int index) {
-    // TODO: Открыть галерею/камеру для выбора фото
-    // Пример:
-    // final image = await ImagePicker().pickImage(source: ImageSource.gallery);
-    // if (image != null) {
-    //   setState(() {
-    //     _photos[index] = image.path;
-    //   });
-    // }
+  Future<void> _handlePhotoTap(int index) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Выбрать из галереи'),
+                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Сделать фото'),
+                onTap: () => Navigator.of(context).pop(ImageSource.camera),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
 
-    // Заглушка для демонстрации
+    if (source == null) return;
+
+    final ok = await _ensurePermissionForSource(source);
+    if (!ok) return;
+
+    if (!mounted) return;
+
+    XFile? picked = await _picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 2048,
+    );
+
+    // Если камера отменена, просто выходим
+    if (picked == null) return;
+
+    File file = File(picked.path);
+
+    // Для камеры показываем предпросмотр "Использовать фото"
+    if (!mounted) return;
+    if (source == ImageSource.camera) {
+      final used = await Navigator.push<File?>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PhotoPreviewScreen(imageFile: file),
+        ),
+      );
+      if (used == null) return;
+      file = used;
+    }
+
+    // Экран обрезки (пока возвращает тот же файл)
+    if (!mounted) return;
+    final cropped = await Navigator.push<File?>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PhotoCropScreen(imageFile: file),
+      ),
+    );
+    if (cropped != null) {
+      file = cropped;
+    }
+
     setState(() {
-      _photos[index] = 'photo_$index';
+      widget.draft.photos[index] = file.path;
     });
+  }
+
+  Future<bool> _ensurePermissionForSource(ImageSource source) async {
+    if (source == ImageSource.camera) {
+      final cameraStatus = await Permission.camera.request();
+      if (cameraStatus.isGranted) return true;
+
+      if (!mounted) return false;
+      final res = await Navigator.push<bool?>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const PhotoPermissionScreen(type: PhotoPermissionType.camera),
+        ),
+      );
+      return res == true;
+    }
+
+    final photosStatus = await Permission.photos.request();
+    if (photosStatus.isGranted || photosStatus.isLimited) return true;
+
+    // На некоторых Android-устройствах может потребоваться storage
+    final storageStatus = await Permission.storage.request();
+    if (storageStatus.isGranted) return true;
+
+    if (!mounted) return false;
+    final res = await Navigator.push<bool?>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const PhotoPermissionScreen(type: PhotoPermissionType.gallery),
+      ),
+    );
+    return res == true;
   }
 
   void _handleMainPhotoEdit() {
@@ -32,7 +136,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
   }
 
   void _handleNext() {
-    final photoCount = _photos.where((photo) => photo != null).length;
+    final photoCount = widget.draft.photos.where((photo) => photo != null).length;
     if (photoCount < 3) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -43,11 +147,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
       return;
     }
 
-    // TODO: Сохранить фотографии и перейти на следующий экран
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(builder: (context) => const NextScreen()),
-    // );
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => AboutMeScreen(draft: widget.draft)),
+    );
   }
 
   @override
@@ -58,7 +161,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
         child: Column(
           children: [
             // Header with progress bar
-            _buildHeader(step: 2, totalSteps: 4),
+            _buildHeader(step: 4, totalSteps: kProfileTotalSteps),
             // Main content
             Expanded(
               child: SingleChildScrollView(
@@ -138,7 +241,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
   }
 
   Widget _buildPhotoPlaceholder(int index) {
-    final hasPhoto = _photos[index] != null;
+    final photoPath = widget.draft.photos[index];
+    final hasPhoto = photoPath != null && photoPath.isNotEmpty;
     final isMainPhoto = index == _mainPhotoIndex;
 
     return GestureDetector(
@@ -149,7 +253,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -161,15 +265,23 @@ class _PhotosScreenState extends State<PhotosScreen> {
             if (hasPhoto)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  color: Colors.grey.shade200,
-                  child: const Center(
-                    child: Icon(
-                      Icons.image,
-                      size: 40,
-                      color: Color(0xFF81262B),
-                    ),
-                  ),
+                child: Image.file(
+                  File(photoPath),
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: Icon(
+                          Icons.broken_image,
+                          size: 40,
+                          color: Color(0xFF81262B),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               )
             else
@@ -191,7 +303,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(

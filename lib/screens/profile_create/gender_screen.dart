@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'photos_screen.dart';
+import '../../models/profile_draft.dart';
+import 'profile_flow_steps.dart';
 
 class GenderScreen extends StatefulWidget {
-  const GenderScreen({super.key});
+  final ProfileDraft draft;
+
+  const GenderScreen({super.key, required this.draft});
 
   @override
   State<GenderScreen> createState() => _GenderScreenState();
@@ -10,6 +15,13 @@ class GenderScreen extends StatefulWidget {
 class _GenderScreenState extends State<GenderScreen> {
   String? _selectedGender;
   String? _selectedPreference;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedGender = widget.draft.gender;
+    _selectedPreference = widget.draft.preference;
+  }
 
   void _handleNext() {
     if (_selectedGender == null || _selectedPreference == null) {
@@ -22,11 +34,12 @@ class _GenderScreenState extends State<GenderScreen> {
       return;
     }
 
-    // TODO: Сохранить выбор и перейти на следующий экран
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(builder: (context) => const PhotosScreen()),
-    // );
+    widget.draft.gender = _selectedGender;
+    widget.draft.preference = _selectedPreference;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => PhotosScreen(draft: widget.draft)),
+    );
   }
 
   @override
@@ -37,7 +50,7 @@ class _GenderScreenState extends State<GenderScreen> {
         child: Column(
           children: [
             // Header with progress bar
-            _buildHeader(step: 1, totalSteps: 4),
+            _buildHeader(step: 3, totalSteps: kProfileTotalSteps),
             // Main content
             Expanded(
               child: SingleChildScrollView(

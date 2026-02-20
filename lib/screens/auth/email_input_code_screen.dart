@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'auth_options_screen.dart';
+// TEMP: Временный импорт для пропуска регистрации
+import '../profile_create/name_screen.dart';
 
 class EmailInputCodeScreen extends StatefulWidget {
   final String email;
@@ -82,6 +84,17 @@ class _EmailInputCodeScreenState extends State<EmailInputCodeScreen> {
   void _submitCode() {
     final code = _controllers.map((c) => c.text).join();
     if (code.length != 6) return;
+    
+    // TEMP: Временная проверка для пропуска регистрации - удалить после тестирования
+    if (code == '666666') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const NameScreen()),
+      );
+      return;
+    }
+    // TEMP END
+    
     // TODO: вызвать API верификации кода, затем переход на создание профиля
     // Navigator.pushReplacement(
     //   context,

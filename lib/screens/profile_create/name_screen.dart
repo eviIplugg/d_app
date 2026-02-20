@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'birthdate_screen.dart';
+import '../../models/profile_draft.dart';
+import 'profile_flow_steps.dart';
 
 class NameScreen extends StatefulWidget {
-  const NameScreen({super.key});
+  final ProfileDraft? draft;
+
+  const NameScreen({super.key, this.draft});
 
   @override
   State<NameScreen> createState() => _NameScreenState();
@@ -12,6 +17,15 @@ class _NameScreenState extends State<NameScreen> {
   final _formKey = GlobalKey<FormState>();
 
   @override
+  void initState() {
+    super.initState();
+    final name = widget.draft?.name ?? '';
+    if (name.isNotEmpty) {
+      _nameController.text = name;
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
@@ -19,11 +33,12 @@ class _NameScreenState extends State<NameScreen> {
 
   void _handleNext() {
     if (_formKey.currentState!.validate()) {
-      // TODO: Сохранить имя и перейти на следующий экран
-      // Navigator.push(
-      //   context,
-      //   MaterialPageRoute(builder: (context) => const BirthdateScreen()),
-      // );
+      final draft = widget.draft ?? ProfileDraft();
+      draft.name = _nameController.text.trim();
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => BirthdateScreen(draft: draft)),
+      );
     }
   }
 
@@ -45,7 +60,7 @@ class _NameScreenState extends State<NameScreen> {
         child: Column(
           children: [
             // Header with progress bar
-            _buildHeader(step: 1, totalSteps: 4),
+            _buildHeader(step: 1, totalSteps: kProfileTotalSteps),
             // Main content
             Expanded(
               child: Padding(
