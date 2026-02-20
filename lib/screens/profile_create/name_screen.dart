@@ -168,7 +168,11 @@ class _NameScreenState extends State<NameScreen> {
               Icons.arrow_back,
               color: Color(0xFF333333),
             ),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
+            },
           ),
           // Progress bar
           Expanded(

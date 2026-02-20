@@ -9,7 +9,7 @@ class PhotosScreen extends StatefulWidget {
 
 class _PhotosScreenState extends State<PhotosScreen> {
   final List<String?> _photos = List.filled(6, null);
-  int _mainPhotoIndex = 0;
+  final int _mainPhotoIndex = 0;
 
   void _handlePhotoTap(int index) {
     // TODO: Открыть галерею/камеру для выбора фото
@@ -20,7 +20,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
     //     _photos[index] = image.path;
     //   });
     // }
-    
+
     // Заглушка для демонстрации
     setState(() {
       _photos[index] = 'photo_$index';
@@ -91,12 +91,13 @@ class _PhotosScreenState extends State<PhotosScreen> {
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 1,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 1,
+                          ),
                       itemCount: 6,
                       itemBuilder: (context, index) {
                         return _buildPhotoPlaceholder(index);
@@ -125,10 +126,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
                   ),
                   child: const Text(
                     'Далее',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -241,11 +239,12 @@ class _PhotosScreenState extends State<PhotosScreen> {
         children: [
           // Back button
           IconButton(
-            icon: const Icon(
-              Icons.arrow_back,
-              color: Color(0xFF333333),
-            ),
-            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back, color: Color(0xFF333333)),
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
+            },
           ),
           // Progress bar
           Expanded(

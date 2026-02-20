@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/auth/email_verification_request.dart';
 import '../../services/auth/email_auth_service.dart';
+import 'email_input_code_screen.dart';
 
 class EmailInputScreen extends StatefulWidget {
   const EmailInputScreen({super.key});
@@ -40,23 +41,23 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
       if (!mounted) return;
 
       if (response.success) {
-        // TODO: Переход на экран ввода кода верификации
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (context) => VerificationCodeScreen(
-        //       email: _emailController.text.trim(),
-        //       verificationToken: response.verificationToken!,
-        //     ),
-        //   ),
-        // );
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response.message ?? 'Код отправлен на указанный email'),
-            backgroundColor: Colors.green,
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EmailInputCodeScreen(
+              email: _emailController.text.trim(),
+              verificationToken: response.verificationToken,
+            ),
           ),
         );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message ?? 'Код отправлен на указанный email'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -110,7 +111,11 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
                   Icons.arrow_back,
                   color: Color(0xFF333333),
                 ),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                },
               ),
             ),
             // Main content

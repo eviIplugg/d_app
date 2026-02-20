@@ -11,7 +11,7 @@ class DatingApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Ring Me',
+      title: 'Ring me.',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.light,
