@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "483363879285",
+    "project_id": "dating-app-34f38",
+    "storage_bucket": "dating-app-34f38.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:483363879285:android:b766460879403c0e307b3c",
+        "android_client_info": {
+          "package_name": "com.ringme.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "483363879285-n5jdmpg8kdphrnsm5jv4cvnurp4fc7h6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzTGZZb-HuyjQLHZBU2ncR48YhBguf9Uo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "483363879285-n5jdmpg8kdphrnsm5jv4cvnurp4fc7h6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
