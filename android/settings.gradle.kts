@@ -14,6 +14,7 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
+        maven(url = "https://artifactory-external.vkpartner.ru/artifactory/vkid-sdk-android/")
     }
 }
 

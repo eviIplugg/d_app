@@ -93,7 +93,7 @@ class _TermsScreenState extends State<TermsScreen> {
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _darkRed,
-                      disabledBackgroundColor: _darkRed.withOpacity(0.5),
+                      disabledBackgroundColor: _darkRed.withValues(alpha: 0.5),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),

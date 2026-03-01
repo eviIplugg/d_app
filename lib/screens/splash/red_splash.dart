@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../welcome/welcome_screen.dart';
+import 'splash_routes.dart';
 
 class RedSplash extends StatefulWidget {
   const RedSplash({super.key});
@@ -42,10 +42,7 @@ class _RedSplashState extends State<RedSplash>
 
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-        );
+        navigateAfterSplash(context);
       }
     });
   }

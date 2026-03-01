@@ -73,7 +73,7 @@ class _PhotoCropScreenState extends State<PhotoCropScreen> {
               left: 0,
               right: 0,
               child: Container(
-                color: Colors.black.withOpacity(0.7),
+                color: Colors.black.withValues(alpha: 0.7),
                 padding: const EdgeInsets.all(24.0),
                 child: ElevatedButton(
                   onPressed: () {

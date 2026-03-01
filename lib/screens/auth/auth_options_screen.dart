@@ -1,8 +1,23 @@
 import 'package:flutter/material.dart';
-import 'email_input_screen.dart';
+import '../../config/telegram_config.dart';
+import '../../services/auth/auth_service.dart';
+import 'phone_input_screen.dart';
+import 'telegram_login_webview_screen.dart';
+import '../profile_create/name_screen.dart';
 
-class AuthOptionsScreen extends StatelessWidget {
+class AuthOptionsScreen extends StatefulWidget {
   const AuthOptionsScreen({super.key});
+
+  @override
+  State<AuthOptionsScreen> createState() => _AuthOptionsScreenState();
+}
+
+class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    AuthService().ensureVKInitialized();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,27 +26,22 @@ class AuthOptionsScreen extends StatelessWidget {
       body: SafeArea(
         child: Stack(
           children: [
-            // Back button
             Positioned(
               top: 16,
               left: 16,
               child: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Color(0xFF333333)),
                 onPressed: () {
-                  if (Navigator.of(context).canPop()) {
-                    Navigator.of(context).pop();
-                  }
+                  if (Navigator.of(context).canPop()) Navigator.of(context).pop();
                 },
               ),
             ),
-            // Main content
             Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Title
                     const Text(
                       'Регистрация',
                       style: TextStyle(
@@ -41,39 +51,56 @@ class AuthOptionsScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 48),
-                    // Email button
                     _AuthButton(
-                      text: 'Email',
+                      text: 'Номер телефона',
                       onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const EmailInputScreen(),
+                            builder: (context) => const PhoneInputScreen(),
                           ),
                         );
                       },
                     ),
                     const SizedBox(height: 16),
-                    // VKontakte button
                     _IconOnlyButton(
                       icon: _VKLogo(),
-                      onPressed: () {},
+                      onPressed: () => _signInWithVK(context),
                     ),
                     const SizedBox(height: 16),
-                    // Yandex ID button
-                    _IconOnlyButton(
-                      icon: _YandexLogo(),
-                      onPressed: () {},
+                    _AuthButton(
+                      text: 'Telegram',
+                      onPressed: () {
+                        if (!isTelegramConfigured) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Настройте telegramBotUsername и telegramBotDomain в lib/config/telegram_config.dart'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const TelegramLoginWebViewScreen(),
+                          ),
+                        );
+                      },
+                      accentColor: const Color(0xFF0088CC),
                     ),
                     const SizedBox(height: 16),
-                    // Google button
-                    _IconOnlyButton(
-                      icon: _GoogleLogo(),
-                      onPressed: () {},
+                    _AuthButton(
+                      text: 'Войти',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PhoneInputScreen(),
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(height: 16),
-                    // Login button
-                    _AuthButton(text: 'Login', onPressed: () {}),
                   ],
                 ),
               ),
@@ -83,16 +110,39 @@ class AuthOptionsScreen extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _signInWithVK(BuildContext context) async {
+    final auth = AuthService();
+    try {
+      final cred = await auth.signInWithVK();
+      if (cred == null || !context.mounted) return;
+      await auth.saveOrUpdateUser(
+        uid: auth.currentUserId!,
+        authProvider: 'vk',
+      );
+      if (!context.mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const NameScreen()),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      final String msg = e.toString().contains('initSdk') || e.toString().contains('_initialized') || e.toString().contains('VK ID')
+          ? 'Вход через VK ID временно недоступен. Проверьте VKID_CLIENT_ID и VKID_CLIENT_SECRET в android/gradle.properties.'
+          : 'Ошибка входа VK ID: ${e.toString().split('\n').first}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      );
+    }
+  }
 }
 
 class _AuthButton extends StatelessWidget {
   final String text;
   final VoidCallback onPressed;
+  final Color? accentColor;
 
-  const _AuthButton({
-    required this.text,
-    required this.onPressed,
-  });
+  const _AuthButton({required this.text, required this.onPressed, this.accentColor});
 
   @override
   Widget build(BuildContext context) {
@@ -115,16 +165,23 @@ class _AuthButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Center(
-              child: Text(
-                text,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF333333),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (accentColor != null) ...[
+                  Icon(Icons.send, size: 20, color: accentColor),
+                  const SizedBox(width: 10),
+                ],
+                Text(
+                  text,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: accentColor ?? const Color(0xFF333333),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -137,10 +194,7 @@ class _IconOnlyButton extends StatelessWidget {
   final Widget icon;
   final VoidCallback onPressed;
 
-  const _IconOnlyButton({
-    required this.icon,
-    required this.onPressed,
-  });
+  const _IconOnlyButton({required this.icon, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -163,9 +217,7 @@ class _IconOnlyButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Center(
-              child: icon,
-            ),
+            child: Center(child: icon),
           ),
         ),
       ),
@@ -176,29 +228,21 @@ class _IconOnlyButton extends StatelessWidget {
 class _VKLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    // Оригинальный размер: 115x20, масштабируем для UI
     const double originalWidth = 115;
     const double originalHeight = 20;
-    const double uiHeight = 20; // Высота для UI
+    const double uiHeight = 20;
     final double uiWidth = (originalWidth / originalHeight) * uiHeight;
-
     return Image.asset(
       'assets/images/registration_icons/vk.png',
       width: uiWidth,
       height: uiHeight,
       fit: BoxFit.contain,
       errorBuilder: (context, error, stackTrace) {
-        // Fallback если изображение не найдено
-        debugPrint('Error loading VK logo: $error');
-        return Container(
+        return SizedBox(
           width: uiWidth,
           height: uiHeight,
-          color: Colors.grey.shade300,
           child: const Center(
-            child: Text(
-              'VK',
-              style: TextStyle(fontSize: 10, color: Colors.grey),
-            ),
+            child: Text('VK', style: TextStyle(fontSize: 10, color: Colors.grey)),
           ),
         );
       },
@@ -206,68 +250,3 @@ class _VKLogo extends StatelessWidget {
   }
 }
 
-class _YandexLogo extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    // Оригинальный размер: 85x19, масштабируем для UI
-    const double originalWidth = 85;
-    const double originalHeight = 19;
-    const double uiHeight = 19; // Высота для UI
-    final double uiWidth = (originalWidth / originalHeight) * uiHeight;
-
-    return Image.asset(
-      'assets/images/registration_icons/yandex.png',
-      width: uiWidth,
-      height: uiHeight,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        // Fallback если изображение не найдено
-        debugPrint('Error loading Yandex logo: $error');
-        return Container(
-          width: uiWidth,
-          height: uiHeight,
-          color: Colors.grey.shade300,
-          child: const Center(
-            child: Text(
-              'Я',
-              style: TextStyle(fontSize: 10, color: Colors.grey),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _GoogleLogo extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    // Оригинальный размер: 65x22, масштабируем для UI
-    const double originalWidth = 65;
-    const double originalHeight = 22;
-    const double uiHeight = 22; // Высота для UI
-    final double uiWidth = (originalWidth / originalHeight) * uiHeight;
-
-    return Image.asset(
-      'assets/images/registration_icons/google.png',
-      width: uiWidth,
-      height: uiHeight,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        // Fallback если изображение не найдено
-        debugPrint('Error loading Google logo: $error');
-        return Container(
-          width: uiWidth,
-          height: uiHeight,
-          color: Colors.grey.shade300,
-          child: const Center(
-            child: Text(
-              'G',
-              style: TextStyle(fontSize: 10, color: Colors.grey),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}

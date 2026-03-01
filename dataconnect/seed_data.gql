@@ -1,0 +1,143 @@
+mutation CreateDemoData @transaction @auth(level: USER, insecureReason: "This is a seed mutation and is safe to expose to logged in users.") {
+  user_insertMany(data: [
+    {
+      id: "6e2d9c02-2a54-4f0e-8f5f-3b0d1e5a7c9d",
+      username: "john_doe",
+      email: "john.doe@example.com",
+      password: "secure_password_1",
+      createdAt: "2023-01-01T10:00:00Z",
+      displayName: "John Doe",
+      bio: "An avid diner and reviewer.",
+      profilePictureUrl: "https://example.com/john.jpg",
+      preferredCuisines: ["Italian", "Mexican"],
+      diningPreferences: "Casual dining"
+    },
+    {
+      id: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      username: "jane_smith",
+      email: "jane.smith@example.com",
+      password: "secure_password_2",
+      createdAt: "2023-01-02T11:00:00Z",
+      displayName: "Jane Smith",
+      bio: "Food enthusiast and travel blogger.",
+      profilePictureUrl: "https://example.com/jane.jpg",
+      preferredCuisines: ["Japanese", "Thai"],
+      diningPreferences: "Fine dining"
+    }
+  ])
+  restaurant_insertMany(data: [
+    {
+      id: "f8e7d6c5-b4a3-2109-fedc-ba9876543210",
+      name: "Pasta Paradise",
+      address: "123 Main St",
+      cuisineType: "Italian",
+      createdAt: "2023-01-05T12:00:00Z",
+      description: "Authentic Italian dishes.",
+      website: "https://pastaparadise.com",
+      phoneNumber: "555-1111",
+      openingHours: "Mon-Sat 11:00-22:00",
+      averageRating: 4.5,
+      photos: ["https://example.com/pasta1.jpg", "https://example.com/pasta2.jpg"],
+      menu: "https://pastaparadise.com/menu"
+    },
+    {
+      id: "1a2b3c4d-5e6f-7080-91a2-b3c4d5e6f7a8",
+      name: "Sushi Haven",
+      address: "456 Oak Ave",
+      cuisineType: "Japanese",
+      createdAt: "2023-01-06T13:00:00Z",
+      description: "Fresh sushi and sashimi.",
+      website: "https://sushihaven.com",
+      phoneNumber: "555-2222",
+      openingHours: "Tue-Sun 12:00-21:00",
+      averageRating: 4.8,
+      photos: ["https://example.com/sushi1.jpg", "https://example.com/sushi2.jpg"],
+      menu: "https://sushihaven.com/menu"
+    }
+  ])
+  post_insertMany(data: [
+    {
+      id: "c7b6a5d4-e3f2-1g0h-9i8j-7k6l5m4n3o2p",
+      userId: "6e2d9c02-2a54-4f0e-8f5f-3b0d1e5a7c9d",
+      restaurantId: "f8e7d6c5-b4a3-2109-fedc-ba9876543210",
+      content: "Amazing pasta at Pasta Paradise!",
+      createdAt: "2023-01-10T14:00:00Z",
+      postType: "Review",
+      imageUrl: "https://example.com/pasta_review.jpg",
+      rating: 5,
+      locationText: "Downtown"
+    },
+    {
+      id: "d8c7b6a5-f4e3-2d1c-0b9a-87654321fedc",
+      userId: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      restaurantId: "1a2b3c4d-5e6f-7080-91a2-b3c4d5e6f7a8",
+      content: "The best sushi in town at Sushi Haven!",
+      createdAt: "2023-01-11T15:00:00Z",
+      postType: "Review",
+      imageUrl: "https://example.com/sushi_review.jpg",
+      rating: 5,
+      locationText: "Uptown"
+    }
+  ])
+  booking_insertMany(data: [
+    {
+      id: "e9f8d7c6-a5b4-3c2d-1e0f-9a8b7c6d5e4f",
+      userId: "6e2d9c02-2a54-4f0e-8f5f-3b0d1e5a7c9d",
+      restaurantId: "f8e7d6c5-b4a3-2109-fedc-ba9876543210",
+      bookingDate: "2023-01-15",
+      bookingTime: "19:00",
+      numberOfGuests: 2,
+      createdAt: "2023-01-12T10:30:00Z",
+      specialRequests: "Table by the window",
+      status: "Confirmed"
+    },
+    {
+      id: "f0e9d8c7-b6a5-4f3e-2d1c-0b9a87654321",
+      userId: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      restaurantId: "1a2b3c4d-5e6f-7080-91a2-b3c4d5e6f7a8",
+      bookingDate: "2023-01-16",
+      bookingTime: "20:00",
+      numberOfGuests: 4,
+      createdAt: "2023-01-13T11:45:00Z",
+      specialRequests: "Quiet table",
+      status: "Confirmed"
+    }
+  ])
+  interaction_insertMany(data: [
+    {
+      id: "11223344-5566-7788-99aa-bbccddeeff00",
+      userId: "6e2d9c02-2a54-4f0e-8f5f-3b0d1e5a7c9d",
+      postId: "c7b6a5d4-e3f2-1g0h-9i8j-7k6l5m4n3o2p",
+      interactionType: "Like",
+      createdAt: "2023-01-10T14:05:00Z"
+    },
+    {
+      id: "22334455-6677-8899-aabb-ccddeeff0011",
+      userId: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      postId: "c7b6a5d4-e3f2-1g0h-9i8j-7k6l5m4n3o2p",
+      interactionType: "Comment",
+      createdAt: "2023-01-10T14:10:00Z",
+      commentText: "I agree, this place is fantastic!"
+    }
+  ])
+  match_insertMany(data: [
+    {
+      id: "33445566-7788-99aa-bbcc-ddeeff001122",
+      user1Id: "6e2d9c02-2a54-4f0e-8f5f-3b0d1e5a7c9d",
+      user2Id: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      createdAt: "2023-01-14T09:00:00Z",
+      status: "Accepted"
+    }
+  ])
+  cRMEntry_insertMany(data: [
+    {
+      id: "44556677-8899-aabb-ccdd-eeff00112233",
+      userId: "6e2d9c02-2a54-4f0e-8f5f-3b0d1e5a7c9d",
+      entryType: "Follow-up",
+      createdAt: "2023-01-17T10:00:00Z",
+      notes: "Follow up on dining preferences.",
+      followUpDate: "2023-01-20",
+      status: "Pending"
+    }
+  ])
+}

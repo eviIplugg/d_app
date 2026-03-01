@@ -1,0 +1,55 @@
+query GetMyProfile @auth(level: USER, insecureReason: "Retrieving a user's own profile is safe to expose to logged-in users.") {
+  user(key: {id_expr: "auth.uid"}) {
+    id
+    username
+    displayName
+    profilePictureUrl
+    bio
+    preferredCuisines
+    diningPreferences
+  }
+}
+
+mutation UpdateMyProfile($displayName: String, $bio: String, $profilePictureUrl: String, $preferredCuisines: [String!], $diningPreferences: String) @auth(level: USER) {
+  user_update(
+    key: {id_expr: "auth.uid"},
+    data: {
+      displayName: $displayName,
+      bio: $bio,
+      profilePictureUrl: $profilePictureUrl,
+      preferredCuisines: $preferredCuisines,
+      diningPreferences: $diningPreferences
+    }
+  )
+}
+
+query GetRestaurantDetails($restaurantId: UUID!) @auth(level: PUBLIC, insecureReason: "Restaurant details are public information.") {
+  restaurant(id: $restaurantId) {
+    id
+    name
+    address
+    cuisineType
+    description
+    website
+    phoneNumber
+    openingHours
+    averageRating
+    photos
+    menu
+  }
+}
+
+mutation CreateBooking($restaurantId: UUID!, $bookingDate: Date!, $bookingTime: String!, $numberOfGuests: Int!, $specialRequests: String) @auth(level: USER) {
+  booking_insert(
+    data: {
+      userId_expr: "auth.uid",
+      restaurantId: $restaurantId,
+      bookingDate: $bookingDate,
+      bookingTime: $bookingTime,
+      numberOfGuests: $numberOfGuests,
+      specialRequests: $specialRequests,
+      createdAt_expr: "request.time",
+      status: "pending"
+    }
+  )
+}

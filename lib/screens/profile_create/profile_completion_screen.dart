@@ -1,6 +1,11 @@
-import 'package:flutter/material.dart';
 import 'dart:io';
+
+import 'package:flutter/material.dart';
+
+import '../../firebase/firestore_schema.dart';
 import '../../models/profile_draft.dart';
+import '../../services/auth/auth_service.dart';
+import '../feed/feed_instruction_screen.dart';
 
 class ProfileCompletionScreen extends StatelessWidget {
   final ProfileDraft draft;
@@ -10,7 +15,13 @@ class ProfileCompletionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = draft.name.trim().isEmpty ? '!' : ', ${draft.name.trim()}!';
-    final mainPhotoPath = draft.photos.isNotEmpty ? draft.photos.first : null;
+    String? mainPhotoPath;
+    for (final p in draft.photos) {
+      if (p != null && p.trim().isNotEmpty) {
+        mainPhotoPath = p;
+        break;
+      }
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F3F3),
@@ -64,7 +75,7 @@ class ProfileCompletionScreen extends StatelessWidget {
                           width: 2,
                         ),
                       ),
-                      child: mainPhotoPath != null && mainPhotoPath.trim().isNotEmpty
+                      child: mainPhotoPath != null
                           ? ClipOval(
                               child: Image.file(
                                 File(mainPhotoPath),
@@ -100,11 +111,38 @@ class ProfileCompletionScreen extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: Navigate to main app screen
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Профиль создан! Переход в приложение...'),
+                        onPressed: () async {
+                          final auth = AuthService();
+                          final uid = auth.currentUserId;
+                          try {
+                            if (uid != null) {
+                              final profileData = <String, dynamic>{
+                                kUserName: draft.name,
+                                kUserGender: draft.gender,
+                                kUserPreference: draft.preference,
+                                kUserBio: draft.bio,
+                                kUserCity: draft.city,
+                                kUserJob: draft.job,
+                                kUserEducation: draft.education,
+                                kUserPhotos: [],
+                              };
+                              if (draft.birthdate != null) {
+                                profileData[kUserBirthdate] = draft.birthdate!;
+                              }
+                              await auth.updateUserProfile(uid: uid, profileData: profileData);
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Ошибка сохранения: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                          if (!context.mounted) return;
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const FeedInstructionScreen(),
                             ),
                           );
                         },
@@ -137,7 +175,12 @@ class ProfileCompletionScreen extends StatelessWidget {
               child: IconButton(
                 icon: const Icon(Icons.close, color: Color(0xFF333333)),
                 onPressed: () {
-                  // TODO: Handle close action
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FeedInstructionScreen(),
+                    ),
+                  );
                 },
               ),
             ),

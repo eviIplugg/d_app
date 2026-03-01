@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Пользователь может читать и писать только свой документ в users (по uid).
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Остальные коллекции — пока запрещены (настроите по мере добавления фич).
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

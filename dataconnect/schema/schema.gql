@@ -1,0 +1,72 @@
+type User @table {
+  username: String!
+  email: String!
+  password: String!
+  createdAt: Timestamp!
+  displayName: String
+  bio: String
+  profilePictureUrl: String
+  preferredCuisines: [String]
+  diningPreferences: String
+}
+
+type Restaurant @table {
+  name: String!
+  address: String!
+  cuisineType: String!
+  createdAt: Timestamp!
+  description: String
+  website: String
+  phoneNumber: String
+  openingHours: String
+  averageRating: Float
+  photos: [String]
+  menu: String
+}
+
+type Post @table {
+  user: User!
+  restaurant: Restaurant
+  content: String!
+  createdAt: Timestamp!
+  postType: String!
+  imageUrl: String
+  rating: Int
+  locationText: String
+}
+
+type Interaction @table {
+  user: User!
+  post: Post!
+  interactionType: String!
+  createdAt: Timestamp!
+  commentText: String
+}
+
+type Match @table {
+  user1: User!
+  user2: User!
+  createdAt: Timestamp!
+  status: String!
+}
+
+type Booking @table {
+  user: User!
+  restaurant: Restaurant!
+  bookingDate: Date!
+  bookingTime: String!
+  numberOfGuests: Int!
+  createdAt: Timestamp!
+  specialRequests: String
+  status: String
+}
+
+type CRMEntry @table {
+  user: User
+  restaurant: Restaurant
+  entryType: String!
+  createdAt: Timestamp!
+  notes: String
+  followUpDate: Date
+  status: String
+}

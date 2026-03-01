@@ -72,5 +72,26 @@
 	<string>Нужен доступ к фото, чтобы выбрать фото для профиля.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Нужен доступ, чтобы сохранять фото профиля.</string>
+	<key>VK_APP_CLIENT_ID</key>
+	<string>0</string>
+	<key>VK_APP_CLIENT_SECRET</key>
+	<string></string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>vkauthorize-silent</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>auth_callback</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>vk0</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
