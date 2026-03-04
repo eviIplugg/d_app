@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/telegram-token.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/telegram-token",
+      "dest": "/api/telegram-token.js"
+    }
+  ]
+}

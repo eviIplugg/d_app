@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'feed_posts_body.dart';
 
-/// Лента: карточки пользователей со свайпами (лайк/дизлайк), суперлайк, назад, ДНК.
-class FeedScreen extends StatelessWidget {
+/// Лента в стиле Instagram: сторис + посты. Добавление постов через кнопку «Добавить» в сторис.
+class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
 
+  @override
+  State<FeedScreen> createState() => _FeedScreenState();
+}
+
+class _FeedScreenState extends State<FeedScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -15,35 +21,10 @@ class FeedScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF333333)),
           onPressed: () {},
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.tune, color: Colors.grey.shade700),
-            onPressed: () {},
-          ),
-        ],
+        title: const Text('Лента', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+        actions: const [],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'Лента',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Здесь будут карточки для свайпов',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-            ),
-          ],
-        ),
-      ),
+      body: const FeedPostsBody(),
     );
   }
 }

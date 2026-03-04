@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import '../../services/auth/auth_service.dart';
 import '../../firebase/firestore_schema.dart';
 import '../welcome/welcome_screen.dart';
-import '../profile_create/name_screen.dart';
 import '../feed/main_app_shell.dart';
 
-/// После сплеша: если пользователь уже зарегистрирован (есть в Auth + профиль в Firestore с именем) — лента, иначе процесс регистрации с начала.
-/// Все данные регистрации сохраняются в Firebase (Auth + Firestore users).
+/// После сплеша: если пользователь уже зарегистрирован (профиль в Firestore с именем) — лента.
+/// Иначе показываем Welcome → регистрация (Terms, Auth) → заполнение профиля (имя и т.д.).
 Future<void> navigateAfterSplash(BuildContext context) async {
   if (!context.mounted) return;
   final auth = AuthService();
@@ -31,9 +30,10 @@ Future<void> navigateAfterSplash(BuildContext context) async {
         MaterialPageRoute(builder: (context) => const MainAppShell()),
       );
     } else {
+      // Профиль не заполнен — показываем Welcome, затем пользователь пройдёт Terms и экран регистрации
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const NameScreen()),
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
       );
     }
   } catch (_) {

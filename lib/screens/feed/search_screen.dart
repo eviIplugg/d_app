@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 
-/// Поиск: фильтры и результаты (с бейджем непрочитанных/новых).
-class SearchScreen extends StatelessWidget {
+import 'feed_content.dart';
+import 'feed_filters_screen.dart';
+
+/// Поиск: анкеты по фильтрам и ближайшей геопозиции (сначала тот же город). Фильтры в кнопке AppBar.
+class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
+
+  @override
+  State<SearchScreen> createState() => _SearchScreenState();
+}
+
+class _SearchScreenState extends State<SearchScreen> {
+  final GlobalKey<FeedContentState> _feedKey = GlobalKey<FeedContentState>();
+
+  static const Color _titleColor = Color(0xFF333333);
 
   @override
   Widget build(BuildContext context) {
@@ -16,32 +28,23 @@ class SearchScreen extends StatelessWidget {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF333333),
+            color: _titleColor,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.tune, color: Colors.grey.shade700),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (ctx) => const FeedFiltersScreen()),
+              );
+              _feedKey.currentState?.loadCandidates();
+            },
+          ),
+        ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'Поиск',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Фильтры и результаты',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-            ),
-          ],
-        ),
-      ),
+      body: FeedContent(key: _feedKey),
     );
   }
 }

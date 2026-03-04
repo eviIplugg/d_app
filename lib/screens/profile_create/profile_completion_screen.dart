@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../firebase/firestore_schema.dart';
 import '../../models/profile_draft.dart';
 import '../../services/auth/auth_service.dart';
+import '../../services/photo_storage_service.dart';
 import '../feed/feed_instruction_screen.dart';
 
 class ProfileCompletionScreen extends StatelessWidget {
@@ -116,6 +117,7 @@ class ProfileCompletionScreen extends StatelessWidget {
                           final uid = auth.currentUserId;
                           try {
                             if (uid != null) {
+                              final photoUrls = await PhotoStorageService().uploadUserPhotos(uid, draft.photos);
                               final profileData = <String, dynamic>{
                                 kUserName: draft.name,
                                 kUserGender: draft.gender,
@@ -124,7 +126,7 @@ class ProfileCompletionScreen extends StatelessWidget {
                                 kUserCity: draft.city,
                                 kUserJob: draft.job,
                                 kUserEducation: draft.education,
-                                kUserPhotos: [],
+                                kUserPhotos: photoUrls,
                               };
                               if (draft.birthdate != null) {
                                 profileData[kUserBirthdate] = draft.birthdate!;

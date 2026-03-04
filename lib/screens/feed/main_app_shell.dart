@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'feed_screen.dart';
+
+import '../../services/chat_service.dart';
 import 'activities_screen.dart';
-import 'search_screen.dart';
 import 'chats_screen.dart';
+import 'feed_screen.dart';
 import 'profile_screen.dart';
+import 'search_screen.dart';
 
 /// Главный экран приложения с нижней навигацией: Лента, Активности, Поиск, Чаты, Профиль.
 class MainAppShell extends StatefulWidget {
@@ -16,9 +18,7 @@ class MainAppShell extends StatefulWidget {
 class _MainAppShellState extends State<MainAppShell> {
   int _currentIndex = 0;
 
-  // Счётчики для бейджей (пока 0; позже — из Firestore/Stream: сообщения, новые в поиске)
   final int _searchUnreadCount = 0;
-  final int _chatsUnreadCount = 0;
 
   static const List<_NavDestination> _destinations = [
     _NavDestination(icon: Icons.home_outlined, label: 'Лента'),
@@ -41,29 +41,33 @@ class _MainAppShellState extends State<MainAppShell> {
           ProfileScreen(),
         ],
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
+      bottomNavigationBar: StreamBuilder<int>(
+        stream: ChatService().streamTotalUnreadCount(),
+        builder: (context, snapshot) {
+          final chatsUnreadCount = snapshot.data ?? 0;
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(_destinations.length, (index) {
-                final d = _destinations[index];
-                final isSelected = _currentIndex == index;
-                int? badgeCount;
-                if (index == 2) badgeCount = _searchUnreadCount;
-                if (index == 3) badgeCount = _chatsUnreadCount;
-                return InkWell(
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: List.generate(_destinations.length, (index) {
+                    final d = _destinations[index];
+                    final isSelected = _currentIndex == index;
+                    int? badgeCount;
+                    if (index == 2) badgeCount = _searchUnreadCount;
+                    if (index == 3) badgeCount = chatsUnreadCount;
+                    return InkWell(
                   onTap: () => setState(() => _currentIndex = index),
                   borderRadius: BorderRadius.circular(12),
                   child: Padding(
@@ -94,10 +98,12 @@ class _MainAppShellState extends State<MainAppShell> {
                     ),
                   ),
                 );
-              }),
+                  }),
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

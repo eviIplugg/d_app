@@ -11,6 +11,7 @@ const String kChatsCollection = 'chats';
 const String kActivitiesCollection = 'activities';
 const String kVerificationCollection = 'verification';
 const String kFeedCollection = 'feed'; // опционально: кэш ленты по пользователю
+const String kPostsCollection = 'posts';
 
 // Субколлекции
 const String kMessagesSubcollection = 'messages';
@@ -36,8 +37,12 @@ const String kUserCreatedAt = 'createdAt'; // Timestamp
 const String kUserUpdatedAt = 'updatedAt'; // Timestamp
 const String kUserLastActiveAt = 'lastActiveAt'; // Timestamp
 const String kUserFcmToken = 'fcmToken'; // для push-уведомлений
+const String kUserInterests = 'interests'; // List<String> — теги: Теннис, Вино и т.д.
+const String kUserRelationshipGoal = 'relationshipGoal'; // 'friendship' | 'communication' | 'relationship'
 
-// ============== SWIPES (свайпы) ==============
+/// Настройки (вложенный объект в документе users): приватность, уведомления и т.д.
+const String kUserSettings = 'settings';
+
 // Коллекция: swipes
 // documentId = auto ID или составной: "${userId}_${targetUserId}"
 
@@ -75,6 +80,7 @@ const String kMessageText = 'text';
 const String kMessageCreatedAt = 'createdAt'; // Timestamp
 const String kMessageReadBy = 'readBy'; // List<String> — кто прочитал (userId)
 const String kMessageType = 'type'; // 'text' | 'image' (опционально)
+const String kMessageImageUrl = 'imageUrl'; // для type == 'image'
 
 // ============== ACTIVITIES (активности) ==============
 // Коллекция: activities
@@ -108,3 +114,21 @@ const String kFeedCacheSubcollection = 'feedCache';
 // documentId = targetUserId
 const String kFeedCachedAt = 'cachedAt'; // Timestamp
 // остальные поля — копия нужных полей из users (name, photos[0], age, city...)
+
+// ============== POSTS (посты в ленте) ==============
+const String kPostAuthorId = 'authorId';
+const String kPostPhotoUrls = 'photoUrls'; // List<String>
+const String kPostPhotoDataUrls = 'photoDataUrls'; // List<String> data:image/jpeg;base64,... (без Storage)
+const String kPostCaption = 'caption';
+const String kPostCreatedAt = 'createdAt'; // Timestamp
+const String kPostType = 'type'; // 'personal' | 'activity'
+const String kPostLikeCount = 'likeCount'; // int
+const String kPostLikedBy = 'likedBy'; // List<String>
+
+const String kPostActivityTitle = 'activityTitle';
+const String kPostActivityDate = 'activityDate';
+const String kPostActivityVenue = 'activityVenue';
+const String kPostActivityVenueVerified = 'activityVenueVerified';
+const String kPostActivityPrice = 'activityPrice';
+const String kPostActivityRating = 'activityRating';
+const String kPostActivityTag = 'activityTag';

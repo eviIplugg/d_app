@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../config/telegram_config.dart';
+import '../../firebase/firestore_schema.dart';
 import '../../services/auth/auth_service.dart';
 import 'phone_input_screen.dart';
 import 'telegram_login_webview_screen.dart';
@@ -17,6 +18,24 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
   void initState() {
     super.initState();
     AuthService().ensureVKInitialized();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkAlreadyLoggedIn());
+  }
+
+  Future<void> _checkAlreadyLoggedIn() async {
+    final auth = AuthService();
+    final uid = auth.currentUserId;
+    if (uid == null) return;
+    final profile = await auth.getUserProfile(uid);
+    if (!mounted) return;
+    final hasName = profile != null &&
+        profile[kUserName] != null &&
+        (profile[kUserName] is String) &&
+        (profile[kUserName] as String).trim().isNotEmpty;
+    if (!hasName) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const NameScreen()),
+      );
+    }
   }
 
   @override

@@ -1,12 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'agreement_modal.dart';
 import '../auth/auth_options_screen.dart';
 
-/// Placeholder URLs — replace with your real policy and agreement pages.
-const String _privacyPolicyUrl = 'https://example.com/privacy';
-const String _userAgreementUrl = 'https://example.com/terms';
-
+/// Placeholder URLs — при нажатии на ссылки открывается окошко с текстом соглашения/политики.
 class TermsScreen extends StatefulWidget {
   const TermsScreen({super.key});
 
@@ -22,11 +19,12 @@ class _TermsScreenState extends State<TermsScreen> {
 
   bool get _canContinue => _privacyAccepted && _agreementAccepted;
 
-  Future<void> _openUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+  void _openPrivacyPolicy(BuildContext context) {
+    AgreementModal.showPrivacyPolicy(context);
+  }
+
+  void _openUserAgreement(BuildContext context) {
+    AgreementModal.showUserAgreement(context);
   }
 
   @override
@@ -63,7 +61,7 @@ class _TermsScreenState extends State<TermsScreen> {
                 onChanged: (v) => setState(() => _privacyAccepted = v ?? false),
                 label: 'Я принимаю ',
                 linkText: 'Политику конфиденциальности',
-                onTapLink: () => _openUrl(_privacyPolicyUrl),
+                onTapLink: () => _openPrivacyPolicy(context),
               ),
               const SizedBox(height: 20),
               _CheckRow(
@@ -72,7 +70,7 @@ class _TermsScreenState extends State<TermsScreen> {
                 label: 'Я принимаю ',
                 linkText: 'Пользовательское соглашение',
                 linkSuffix: ' и подтверждаю, что мне исполнилось 18 лет',
-                onTapLink: () => _openUrl(_userAgreementUrl),
+                onTapLink: () => _openUserAgreement(context),
               ),
               const Spacer(),
               Padding(
