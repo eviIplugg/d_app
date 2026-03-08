@@ -1,8 +1,23 @@
 import 'package:flutter/material.dart';
+import 'feed_events_body.dart';
 
-/// Активности: лайки, матчи, сообщения, просмотры профиля.
-class ActivitiesScreen extends StatelessWidget {
+/// Активности: мероприятия и места проведения. Вкладки, поиск, секции с карточками событий.
+class ActivitiesScreen extends StatefulWidget {
   const ActivitiesScreen({super.key});
+
+  @override
+  State<ActivitiesScreen> createState() => _ActivitiesScreenState();
+}
+
+class _ActivitiesScreenState extends State<ActivitiesScreen> {
+  int _tabIndex = 0; // 0 = Мероприятия, 1 = Места проведения
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,28 +34,78 @@ class ActivitiesScreen extends StatelessWidget {
             color: Color(0xFF333333),
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.tune, color: Color(0xFF333333)),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.search, color: Color(0xFF333333)),
+            onPressed: () {},
+          ),
+        ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.explore_outlined, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'Активности',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
-              ),
+      body: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SegmentedButton<int>(
+                          segments: const [
+                            ButtonSegment(value: 0, label: Text('Мероприятия')),
+                            ButtonSegment(value: 1, label: Text('Места проведения')),
+                          ],
+                          selected: {_tabIndex},
+                          onSelectionChanged: (s) => setState(() => _tabIndex = s.first),
+                          style: ButtonStyle(
+                            backgroundColor: WidgetStateProperty.resolveWith((states) {
+                              if (states.contains(WidgetState.selected)) return const Color(0xFF81262B);
+                              return Colors.grey.shade200;
+                            }),
+                            foregroundColor: WidgetStateProperty.resolveWith((states) {
+                              if (states.contains(WidgetState.selected)) return Colors.white;
+                              return Colors.grey.shade700;
+                            }),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Поиск',
+                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Лайки, матчи и просмотры',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          ),
+          Expanded(
+            child: FeedEventsBody(
+              tabIndex: _tabIndex,
+              searchQuery: _searchController.text,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

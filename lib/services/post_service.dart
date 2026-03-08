@@ -68,6 +68,7 @@ class PostService {
       kPostLikeCount: 0,
       kPostLikedBy: <String>[],
     };
+    data[kPostModerationStatus] = 'pending'; // модерация: по умолчанию на проверке
     if (type == 'activity') {
       if (activityTitle != null) data[kPostActivityTitle] = activityTitle;
       if (activityDate != null) data[kPostActivityDate] = activityDate;
@@ -81,14 +82,33 @@ class PostService {
     return doc.id;
   }
 
-  /// Стрим постов для ленты (все пользователи), по убыванию createdAt.
+  /// Стрим постов для ленты (только одобренные модерацией; без статуса = считаем одобренными).
   Stream<List<FeedPost>> streamPosts({int limit = 50}) {
     return _firestore
         .collection(kPostsCollection)
         .orderBy(kPostCreatedAt, descending: true)
-        .limit(limit)
+        .limit(limit * 2)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => FeedPost.fromFirestore(d)).toList());
+        .map((snap) {
+      final list = snap.docs
+          .where((d) {
+            final status = d.data()[kPostModerationStatus]?.toString();
+            return status != 'rejected' && (status == null || status == 'approved' || status.isEmpty);
+          })
+          .take(limit)
+          .map((d) => FeedPost.fromFirestore(d))
+          .toList();
+      return list;
+    });
+  }
+
+  /// Установить статус модерации поста (только для админа).
+  Future<void> setModerationStatus(String postId, String status, String reviewedBy) async {
+    await _firestore.collection(kPostsCollection).doc(postId).update({
+      kPostModerationStatus: status,
+      kPostReviewedAt: FieldValue.serverTimestamp(),
+      kPostReviewedBy: reviewedBy,
+    });
   }
 
   /// Переключить лайк поста для текущего пользователя.

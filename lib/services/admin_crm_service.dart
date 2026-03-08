@@ -1,0 +1,98 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../firebase/firestore_schema.dart';
+import 'auth/auth_service.dart';
+
+/// Сервис для админ-панели: модерация постов, управление пользователями, мероприятиями и местами.
+class AdminCrmService {
+  AdminCrmService._();
+  static final AdminCrmService _instance = AdminCrmService._();
+  factory AdminCrmService() => _instance;
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  AuthService get _auth => AuthService();
+  String? get _uid => _auth.currentUserId;
+
+  /// Посты на модерации (pending) или все с фильтром.
+  Future<QuerySnapshot<Map<String, dynamic>>> getPostsForModeration({String? status, int limit = 50}) async {
+    var q = _firestore.collection(kPostsCollection).orderBy(kPostCreatedAt, descending: true).limit(limit);
+    if (status != null && status.isNotEmpty) {
+      q = q.where(kPostModerationStatus, isEqualTo: status);
+    }
+    return q.get();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> streamPostsForModeration({String? status, int limit = 50}) {
+    if (status != null && status.isNotEmpty) {
+      return _firestore
+          .collection(kPostsCollection)
+          .where(kPostModerationStatus, isEqualTo: status)
+          .orderBy(kPostCreatedAt, descending: true)
+          .limit(limit)
+          .snapshots();
+    }
+    return _firestore
+        .collection(kPostsCollection)
+        .orderBy(kPostCreatedAt, descending: true)
+        .limit(limit)
+        .snapshots();
+  }
+
+  /// Одобрить или отклонить пост.
+  Future<void> setPostModerationStatus(String postId, String status) async {
+    final uid = _uid;
+    if (uid == null) return;
+    await _firestore.collection(kPostsCollection).doc(postId).update({
+      kPostModerationStatus: status,
+      kPostReviewedAt: FieldValue.serverTimestamp(),
+      kPostReviewedBy: uid,
+    });
+  }
+
+  /// Список пользователей (пагинация).
+  Future<QuerySnapshot<Map<String, dynamic>>> getUsers({DocumentSnapshot? startAfter, int limit = 30}) async {
+    var q = _firestore.collection(kUsersCollection).orderBy(kUserCreatedAt, descending: true).limit(limit);
+    if (startAfter != null) {
+      q = q.startAfterDocument(startAfter);
+    }
+    return q.get();
+  }
+
+  /// Обновить профиль пользователя (верификация, роль, бан). Только админ.
+  Future<void> updateUserByAdmin(String userId, Map<String, dynamic> updates) async {
+    final ref = _firestore.collection(kUsersCollection).doc(userId);
+    final data = <String, dynamic>{
+      ...updates,
+      kUserUpdatedAt: FieldValue.serverTimestamp(),
+    };
+    await ref.set(data, SetOptions(merge: true));
+  }
+
+  /// Все мероприятия (для админа).
+  Future<QuerySnapshot<Map<String, dynamic>>> getEvents({int limit = 50}) async {
+    return _firestore
+        .collection(kEventsCollection)
+        .orderBy(kEventCreatedAt, descending: true)
+        .limit(limit)
+        .get();
+  }
+
+  /// Все места проведения.
+  Future<QuerySnapshot<Map<String, dynamic>>> getVenues({int limit = 50}) async {
+    return _firestore.collection(kVenuesCollection).limit(limit).get();
+  }
+
+  /// Удалить пост (админ).
+  Future<void> deletePost(String postId) async {
+    await _firestore.collection(kPostsCollection).doc(postId).delete();
+  }
+
+  /// Удалить мероприятие (админ).
+  Future<void> deleteEvent(String eventId) async {
+    await _firestore.collection(kEventsCollection).doc(eventId).delete();
+  }
+
+  /// Удалить место (админ).
+  Future<void> deleteVenue(String venueId) async {
+    await _firestore.collection(kVenuesCollection).doc(venueId).delete();
+  }
+}

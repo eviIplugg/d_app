@@ -7,6 +7,8 @@ import 'settings_privacy_screen.dart';
 import 'settings_notifications_screen.dart';
 import 'settings_help_screen.dart';
 import 'login_methods_screen.dart';
+import '../../crm/admin/admin_dashboard_screen.dart';
+import '../../crm/organizer/organizer_dashboard_screen.dart';
 
 /// Настройки: основное (имя, дата рождения, пол, способы входа), приложение (приватность, уведомления, помощь, о приложении), выход.
 class SettingsScreen extends StatefulWidget {
@@ -19,11 +21,23 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _auth = AuthService();
   Map<String, dynamic>? _profile;
+  bool _isAdmin = false;
+  bool _isOrganizer = false;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadRoles();
+  }
+
+  Future<void> _loadRoles() async {
+    final admin = await _auth.isAdmin();
+    final org = await _auth.isOrganizer();
+    if (mounted) setState(() {
+      _isAdmin = admin;
+      _isOrganizer = org;
+    });
   }
 
   Future<void> _loadProfile() async {
@@ -113,6 +127,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _tileWithNav('Уведомления', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsNotificationsScreen()))),
           _tileWithNav('Помощь и поддержка', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsHelpScreen()))),
           _tileWithNav('О приложении', subtitle: 'Версия 1.0.0'),
+          if (_isAdmin)
+            _tileWithNav('Админ-панель', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()))),
+          if (_isOrganizer)
+            _tileWithNav('CRM организатора', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrganizerDashboardScreen()))),
           const SizedBox(height: 24),
           _logoutTile(),
         ],

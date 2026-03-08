@@ -4,6 +4,8 @@ import '../../firebase/firestore_schema.dart';
 import '../../services/auth/auth_service.dart';
 import 'settings/settings_screen.dart';
 import 'edit_profile_screen.dart';
+import '../crm/admin/admin_dashboard_screen.dart';
+import '../crm/organizer/organizer_dashboard_screen.dart';
 
 /// Личный кабинет: профиль зарегистрированного пользователя, меню, переход в настройки.
 class ProfileScreen extends StatefulWidget {
@@ -17,11 +19,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _auth = AuthService();
   Map<String, dynamic>? _profile;
   bool _loading = true;
+  bool _isAdmin = false;
+  bool _isOrganizer = false;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadRoles();
+  }
+
+  Future<void> _loadRoles() async {
+    final admin = await _auth.isAdmin();
+    final org = await _auth.isOrganizer();
+    if (mounted) setState(() {
+      _isAdmin = admin;
+      _isOrganizer = org;
+    });
   }
 
   Future<void> _loadProfile() async {
@@ -92,6 +106,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _menuTile('Чекины', Icons.location_on_outlined, trailing: '0', onTap: () {}),
                       _menuTile('Премиум', Icons.star_outline, onTap: () {}),
                       _menuTile('История активности', Icons.history, onTap: () {}),
+                      if (_isAdmin)
+                        _menuTile('Админ-панель', Icons.admin_panel_settings, onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
+                        }),
+                      if (_isOrganizer)
+                        _menuTile('CRM организатора', Icons.store, onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const OrganizerDashboardScreen()));
+                        }),
                     ],
                   ),
                 ),

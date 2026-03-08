@@ -17,6 +17,33 @@ class AuthService {
   String? get currentUserId => _auth.currentUser?.uid;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  /// Роль текущего пользователя: 'user' | 'organizer' | 'admin'. По умолчанию 'user'.
+  Future<String> getUserRole(String uid) async {
+    final profile = await getUserProfile(uid);
+    final role = profile?[kUserRole]?.toString();
+    return (role == 'admin' || role == 'organizer') ? role! : 'user';
+  }
+
+  /// Является ли текущий пользователь админом.
+  Future<bool> isAdmin() async {
+    final uid = currentUserId;
+    if (uid == null) return false;
+    return await getUserRole(uid) == 'admin';
+  }
+
+  /// Является ли текущий пользователь организатором (имеет роль organizer или владеет хотя бы одним venue).
+  Future<bool> isOrganizer() async {
+    final uid = currentUserId;
+    if (uid == null) return false;
+    if (await getUserRole(uid) == 'organizer') return true;
+    final snap = await FirebaseFirestore.instance
+        .collection(kVenuesCollection)
+        .where(kVenueOwnerId, isEqualTo: uid)
+        .limit(1)
+        .get();
+    return snap.docs.isNotEmpty;
+  }
+
   /// Получить профиль пользователя из Firestore (для синхронизации на сплеше).
   Future<Map<String, dynamic>?> getUserProfile(String uid) async {
     final snap = await _firestore.collection(kUsersCollection).doc(uid).get();

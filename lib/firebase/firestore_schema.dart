@@ -12,6 +12,10 @@ const String kActivitiesCollection = 'activities';
 const String kVerificationCollection = 'verification';
 const String kFeedCollection = 'feed'; // опционально: кэш ленты по пользователю
 const String kPostsCollection = 'posts';
+const String kEventsCollection = 'events';
+const String kVenuesCollection = 'venues';
+const String kEventSubscriptionsCollection = 'eventSubscriptions';
+const String kEventParticipantsCollection = 'eventParticipants';
 
 // Субколлекции
 const String kMessagesSubcollection = 'messages';
@@ -39,6 +43,11 @@ const String kUserLastActiveAt = 'lastActiveAt'; // Timestamp
 const String kUserFcmToken = 'fcmToken'; // для push-уведомлений
 const String kUserInterests = 'interests'; // List<String> — теги: Теннис, Вино и т.д.
 const String kUserRelationshipGoal = 'relationshipGoal'; // 'friendship' | 'communication' | 'relationship'
+
+/// Роль пользователя: 'user' | 'organizer' | 'admin'. Для CRM и доступа.
+const String kUserRole = 'role';
+/// Заблокирован ли пользователь (админ).
+const String kUserIsBanned = 'isBanned';
 
 /// Настройки (вложенный объект в документе users): приватность, уведомления и т.д.
 const String kUserSettings = 'settings';
@@ -132,3 +141,48 @@ const String kPostActivityVenueVerified = 'activityVenueVerified';
 const String kPostActivityPrice = 'activityPrice';
 const String kPostActivityRating = 'activityRating';
 const String kPostActivityTag = 'activityTag';
+
+/// Модерация постов/фото: 'pending' | 'approved' | 'rejected'. В ленте показываем только approved.
+const String kPostModerationStatus = 'moderationStatus';
+const String kPostReviewedAt = 'reviewedAt'; // Timestamp
+const String kPostReviewedBy = 'reviewedBy'; // uid модератора
+
+// ============== EVENTS (мероприятия в ленте) ==============
+const String kEventTitle = 'title';
+const String kEventDescription = 'description';
+const String kEventImageUrl = 'imageUrl';
+const String kEventPhotoUrls = 'photoUrls'; // List<String> для галереи
+const String kEventDateTime = 'dateTime'; // Timestamp
+const String kEventVenueId = 'venueId';
+const String kEventVenueName = 'venueName';
+const String kEventVenueVerified = 'venueVerified';
+const String kEventAddress = 'address';
+const String kEventCity = 'city';
+const String kEventPrice = 'price'; // "1500 ₽" или "от 1500 ₽"
+const String kEventRating = 'rating'; // 5.0
+const String kEventStatus = 'status'; // 'open' | 'full'
+const String kEventCurrentParticipants = 'currentParticipants';
+const String kEventMaxParticipants = 'maxParticipants';
+const String kEventCreatedAt = 'createdAt';
+const String kEventLikedBy = 'likedBy'; // List<String> userId
+/// UID организатора (владельца venue), создавшего мероприятие.
+const String kEventCreatedBy = 'createdBy';
+
+// ============== VENUES (места проведения / организаторы) ==============
+const String kVenueName = 'name';
+const String kVenuePhotoUrl = 'photoUrl';
+const String kVenueVerified = 'verified';
+/// UID пользователя-организатора (владелец места).
+const String kVenueOwnerId = 'ownerId';
+const String kVenueEventsCount = 'eventsCount';
+const String kVenueSubscribersCount = 'subscribersCount';
+const String kVenueAddress = 'address';
+const String kVenueCity = 'city';
+
+// eventSubscriptions: userId (docId), venueIds in subcollection or document with array
+const String kEventSubscriptionUserId = 'userId';
+const String kEventSubscriptionVenueId = 'venueId';
+
+// eventParticipants: eventId + userId (для "Ваше расписание")
+const String kEventParticipantEventId = 'eventId';
+const String kEventParticipantUserId = 'userId';
