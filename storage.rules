@@ -1,15 +1,39 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /users/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    // ----- USER PHOTOS -----
+    // Путь: users/{userId}/photos/{photoFile}
+    match /users/{userId}/photos/{photoFile} {
+      // Читать может любой авторизованный (для показа анкет).
+      allow read: if request.auth != null;
+      // Загружать/удалять может только владелец.
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
     }
-    match /chats/{chatId}/{allPaths=**} {
+
+    // ----- POST PHOTOS -----
+    // Путь: posts/{userId}/{postId}/photos/{photoFile}
+    match /posts/{userId}/{postId}/photos/{photoFile} {
+      // Читать может любой авторизованный (лента постов).
+      allow read: if request.auth != null;
+      // Писать может только автор поста (userId == uid).
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ----- CHAT PHOTOS -----
+    // Путь в приложении: chats/{chatId}/{photoFile} (chatId = matchId)
+    match /chats/{chatId}/{photoFile} {
       allow read, write: if request.auth != null;
     }
-    match /posts/{userId}/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+    // Альтернативный путь (если позже будет вложенная структура)
+    match /chats/{chatId}/messages/{messageId}/{photoFile} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Всё остальное запрещено.
+    match /{path=**} {
+      allow read, write: if false;
     }
   }
 }
+

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/auth/auth_service.dart';
+import '../../firebase/firestore_schema.dart';
 import 'auth_options_screen.dart';
 import '../profile_create/name_screen.dart';
+import '../welcome/returning_user_welcome_screen.dart';
 
 class PhoneInputCodeScreen extends StatefulWidget {
   final String phoneNumber;
@@ -88,10 +90,22 @@ class _PhoneInputCodeScreenState extends State<PhoneInputCodeScreen> {
         phoneNumber: widget.phoneNumber,
       );
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const NameScreen()),
-      );
+      final profile = await _authService.getUserProfile(_authService.currentUserId!);
+      if (!mounted) return;
+      if (_authService.isProfileRegistered(profile)) {
+        final name = profile?[kUserName]?.toString() ?? 'Пользователь';
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ReturningUserWelcomeScreen(userName: name),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const NameScreen()),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

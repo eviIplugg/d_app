@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../firebase/firestore_schema.dart';
 import 'auth/auth_service.dart';
 
@@ -9,8 +12,42 @@ class OrganizerCrmService {
   factory OrganizerCrmService() => _instance;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   AuthService get _auth => AuthService();
   String? get _uid => _auth.currentUserId;
+
+  Future<String?> _uploadVenuePhoto({required String venueId, required String filePath}) async {
+    final file = File(filePath);
+    if (!await file.exists()) return null;
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final ref = _storage.ref().child('venues').child(venueId).child('photo').child('photo_$ts.jpg');
+    await ref.putFile(file);
+    return await ref.getDownloadURL();
+  }
+
+  Future<String?> _uploadEventBanner({required String eventId, required String filePath}) async {
+    final file = File(filePath);
+    if (!await file.exists()) return null;
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final ref = _storage.ref().child('events').child(eventId).child('banner').child('banner_$ts.jpg');
+    await ref.putFile(file);
+    return await ref.getDownloadURL();
+  }
+
+  Future<List<String>> _uploadEventGallery({required String eventId, required List<String> filePaths}) async {
+    final urls = <String>[];
+    for (var i = 0; i < filePaths.length; i++) {
+      final p = filePaths[i];
+      if (p.trim().isEmpty) continue;
+      final file = File(p);
+      if (!await file.exists()) continue;
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final ref = _storage.ref().child('events').child(eventId).child('photos').child('${ts}_$i.jpg');
+      await ref.putFile(file);
+      urls.add(await ref.getDownloadURL());
+    }
+    return urls;
+  }
 
   /// Места, владельцем которых является текущий пользователь.
   Future<List<Map<String, dynamic>>> getMyVenues() async {
@@ -59,32 +96,55 @@ class OrganizerCrmService {
     String? venueId,
     required String name,
     String? photoUrl,
+    String? photoFilePath,
     String? address,
     String? city,
     bool verified = false,
   }) async {
     final uid = _uid;
     if (uid == null) throw Exception('Не авторизован');
-    final data = <String, dynamic>{
+    final createData = <String, dynamic>{
       kVenueName: name,
       kVenueOwnerId: uid,
       kVenueVerified: verified,
       kVenueEventsCount: 0,
       kVenueSubscribersCount: 0,
     };
-    if (photoUrl != null) data[kVenuePhotoUrl] = photoUrl;
-    if (address != null) data[kVenueAddress] = address;
-    if (city != null) data[kVenueCity] = city;
+    final updateData = <String, dynamic>{
+      kVenueName: name,
+      kVenueOwnerId: uid,
+      kVenueVerified: verified,
+    };
+    if (photoUrl != null) {
+      createData[kVenuePhotoUrl] = photoUrl;
+      updateData[kVenuePhotoUrl] = photoUrl;
+    }
+    if (address != null) {
+      createData[kVenueAddress] = address;
+      updateData[kVenueAddress] = address;
+    }
+    if (city != null) {
+      createData[kVenueCity] = city;
+      updateData[kVenueCity] = city;
+    }
 
     if (venueId != null && venueId.isNotEmpty) {
       final doc = await _firestore.collection(kVenuesCollection).doc(venueId).get();
       if (doc.exists && doc.data()?[kVenueOwnerId] == uid) {
-        await doc.reference.update(data);
+        await doc.reference.update(updateData);
+        if (photoFilePath != null && photoFilePath.trim().isNotEmpty) {
+          final url = await _uploadVenuePhoto(venueId: venueId, filePath: photoFilePath);
+          if (url != null) await doc.reference.update({kVenuePhotoUrl: url});
+        }
         return venueId;
       }
     }
     final ref = _firestore.collection(kVenuesCollection).doc();
-    await ref.set(data);
+    await ref.set(createData);
+    if (photoFilePath != null && photoFilePath.trim().isNotEmpty) {
+      final url = await _uploadVenuePhoto(venueId: ref.id, filePath: photoFilePath);
+      if (url != null) await ref.update({kVenuePhotoUrl: url});
+    }
     return ref.id;
   }
 
@@ -96,6 +156,8 @@ class OrganizerCrmService {
     String? description,
     String? imageUrl,
     List<String>? photoUrls,
+    String? bannerFilePath,
+    List<String>? galleryFilePaths,
     required DateTime dateTime,
     String? address,
     String? city,
@@ -139,11 +201,32 @@ class OrganizerCrmService {
         data.remove(kEventCurrentParticipants);
         data.remove(kEventLikedBy);
         await eventDoc.reference.update(data);
+        // Файлы в Storage
+        if (bannerFilePath != null && bannerFilePath.trim().isNotEmpty) {
+          final url = await _uploadEventBanner(eventId: eventId, filePath: bannerFilePath);
+          if (url != null) await eventDoc.reference.update({kEventImageUrl: url});
+        }
+        if (galleryFilePaths != null && galleryFilePaths.isNotEmpty) {
+          final urls = await _uploadEventGallery(eventId: eventId, filePaths: galleryFilePaths);
+          if (urls.isNotEmpty) {
+            final existing = List<String>.from((eventDoc.data()?[kEventPhotoUrls] as List?)?.map((e) => e.toString()) ?? []);
+            await eventDoc.reference.update({kEventPhotoUrls: [...existing, ...urls]});
+          }
+        }
         return eventId;
       }
     }
     final ref = _firestore.collection(kEventsCollection).doc();
     await ref.set(data);
+    // Файлы в Storage для нового мероприятия
+    if (bannerFilePath != null && bannerFilePath.trim().isNotEmpty) {
+      final url = await _uploadEventBanner(eventId: ref.id, filePath: bannerFilePath);
+      if (url != null) await ref.update({kEventImageUrl: url});
+    }
+    if (galleryFilePaths != null && galleryFilePaths.isNotEmpty) {
+      final urls = await _uploadEventGallery(eventId: ref.id, filePaths: galleryFilePaths);
+      if (urls.isNotEmpty) await ref.update({kEventPhotoUrls: urls});
+    }
     return ref.id;
   }
 

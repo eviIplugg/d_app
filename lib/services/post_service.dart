@@ -1,16 +1,15 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import '../firebase/firestore_schema.dart';
 import '../models/feed_post.dart';
 import 'auth/auth_service.dart';
 
 /// Сервис постов ленты: создание, стрим, лайки.
-/// Без платной подписки Firebase Storage фото сохраняются в Firestore как base64 (data URL).
-const int _maxPhotosWithoutStorage = 2;
-const int _maxBytesPerPhoto = 350000; // ~350 KB, чтобы уложиться в лимит документа 1 MB
+/// Фото храним в Firebase Storage, а в Firestore — только download URL в поле photoUrls.
+const int _maxPostPhotos = 10;
 
 class PostService {
   PostService._();
@@ -18,27 +17,32 @@ class PostService {
   factory PostService() => _instance;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   AuthService get _auth => AuthService();
 
   String? get _uid => _auth.currentUserId;
 
-  /// Читает фото с диска, сжимает объём (лимит размера) и возвращает data URL для хранения в Firestore.
-  Future<List<String>> filePathsToDataUrls(List<String> filePaths) async {
-    final dataUrls = <String>[];
-    for (var i = 0; i < filePaths.length && dataUrls.length < _maxPhotosWithoutStorage; i++) {
-      final path = filePaths[i];
+  Future<List<String>> _uploadPostPhotos({
+    required String uid,
+    required String postId,
+    required List<String> photoFilePaths,
+  }) async {
+    final urls = <String>[];
+    for (var i = 0; i < photoFilePaths.length && urls.length < _maxPostPhotos; i++) {
+      final path = photoFilePaths[i];
       if (path.trim().isEmpty) continue;
       final file = File(path);
       if (!await file.exists()) continue;
-      final bytes = await file.readAsBytes();
-      if (bytes.length > _maxBytesPerPhoto) continue; // пропускаем слишком большие
-      final base64 = base64Encode(bytes);
-      dataUrls.add('data:image/jpeg;base64,$base64');
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      // Storage rules ожидают путь posts/{userId}/...
+      final ref = _storage.ref().child('posts').child(uid).child(postId).child('photos').child('${ts}_$i.jpg');
+      await ref.putFile(file);
+      urls.add(await ref.getDownloadURL());
     }
-    return dataUrls;
+    return urls;
   }
 
-  /// Создаёт пост. Фото сохраняются в Firestore как base64 (без Storage).
+  /// Создаёт пост. Фото загружаются в Storage, в Firestore сохраняются URL.
   Future<String?> createPost({
     required List<String> photoFilePaths,
     String caption = '',
@@ -54,14 +58,11 @@ class PostService {
     final uid = _uid;
     if (uid == null || photoFilePaths.isEmpty) return null;
 
-    final photoDataUrls = await filePathsToDataUrls(photoFilePaths);
-    if (photoDataUrls.isEmpty) return null;
-
     final doc = _firestore.collection(kPostsCollection).doc();
     final data = <String, dynamic>{
       kPostAuthorId: uid,
       kPostPhotoUrls: <String>[],
-      kPostPhotoDataUrls: photoDataUrls,
+      kPostPhotoDataUrls: <String>[], // legacy (раньше хранили base64). Оставляем пустым.
       kPostCaption: caption,
       kPostCreatedAt: FieldValue.serverTimestamp(),
       kPostType: type,
@@ -79,10 +80,16 @@ class PostService {
       if (activityTag != null) data[kPostActivityTag] = activityTag;
     }
     await doc.set(data);
+    final urls = await _uploadPostPhotos(uid: uid, postId: doc.id, photoFilePaths: photoFilePaths);
+    if (urls.isEmpty) {
+      await doc.delete();
+      return null;
+    }
+    await doc.update({kPostPhotoUrls: urls});
     return doc.id;
   }
 
-  /// Стрим постов для ленты (только одобренные модерацией; без статуса = считаем одобренными).
+  /// Стрим постов для ленты: все, кроме отклонённых модерацией (pending и approved видны).
   Stream<List<FeedPost>> streamPosts({int limit = 50}) {
     return _firestore
         .collection(kPostsCollection)
@@ -93,7 +100,7 @@ class PostService {
       final list = snap.docs
           .where((d) {
             final status = d.data()[kPostModerationStatus]?.toString();
-            return status != 'rejected' && (status == null || status == 'approved' || status.isEmpty);
+            return status != 'rejected';
           })
           .take(limit)
           .map((d) => FeedPost.fromFirestore(d))

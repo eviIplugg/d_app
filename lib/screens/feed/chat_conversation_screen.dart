@@ -33,25 +33,56 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
   static const Color _accentColor = Color(0xFF81262B);
 
+  bool _isAtBottom = true;
+  int _newMessagesCountBelow = 0;
+  int _lastMessageCount = 0;
+  bool _initialScrollDone = false;
+  bool _scrollStateUpdateScheduled = false;
+
   @override
   void initState() {
     super.initState();
     _chat.markAsRead(widget.matchId);
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    final atBottom = pos.pixels <= 80;
+    final needClearCount = atBottom && _newMessagesCountBelow > 0;
+    final needUpdateAtBottom = atBottom != _isAtBottom;
+    if ((needClearCount || needUpdateAtBottom) && !_scrollStateUpdateScheduled) {
+      _scrollStateUpdateScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollStateUpdateScheduled = false;
+        if (!mounted) return;
+        setState(() {
+          if (needClearCount) _newMessagesCountBelow = 0;
+          if (needUpdateAtBottom) _isAtBottom = atBottom;
+        });
+      });
+    }
   }
 
   Future<void> _sendText() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     _controller.clear();
-    await _chat.sendText(widget.matchId, text);
-    _scrollToBottom();
+    setState(() {
+      _isAtBottom = true;
+      _newMessagesCountBelow = 0;
+    });
+    _scrollToBottomInstant();
+    _chat.sendText(widget.matchId, text);
   }
 
   Future<void> _pickAndSendImage() async {
@@ -63,7 +94,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       final url = await _chat.uploadChatImage(widget.matchId, file);
       if (!mounted) return;
       await _chat.sendImage(widget.matchId, url);
-      _scrollToBottom();
+      setState(() {
+        _isAtBottom = true;
+        _newMessagesCountBelow = 0;
+      });
+      _scrollToBottomInstant();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -73,16 +108,20 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottomInstant() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
+        _scrollController.jumpTo(0);
       }
     });
+  }
+
+  void _goToBottom() {
+    setState(() {
+      _isAtBottom = true;
+      _newMessagesCountBelow = 0;
+    });
+    _scrollToBottomInstant();
   }
 
   @override
@@ -129,32 +168,69 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       body: Column(
         children: [
           Expanded(
-            child: StreamBuilder<List<ChatMessage>>(
-              stream: _chat.streamMessages(widget.matchId),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: _accentColor));
-                }
-                final messages = snapshot.data!;
-                if (messages.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Напишите сообщение',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = messages[index];
-                    final isMe = msg.senderId == _auth.currentUserId;
-                    return _MessageBubble(message: msg, isMe: isMe);
+            child: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                StreamBuilder<List<ChatMessage>>(
+                  stream: _chat.streamMessages(widget.matchId),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator(color: _accentColor));
+                    }
+                    final messages = snapshot.data!;
+                    if (messages.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'Напишите сообщение',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      );
+                    }
+                    if (messages.length != _lastMessageCount) {
+                      final len = messages.length;
+                      final prevCount = _lastMessageCount;
+                      _lastMessageCount = len;
+                      if (!_initialScrollDone && len > 0) {
+                        _initialScrollDone = true;
+                        _scrollToBottomInstant();
+                      } else if (len > prevCount) {
+                        final newCount = len - prevCount;
+                        if (_isAtBottom) {
+                          _scrollToBottomInstant();
+                        } else {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) setState(() => _newMessagesCountBelow += newCount);
+                          });
+                        }
+                      }
+                    }
+                    return ListView.builder(
+                      controller: _scrollController,
+                      reverse: true,
+                      padding: const EdgeInsets.only(
+                        left: 12,
+                        right: 12,
+                        top: 8,
+                        bottom: 8,
+                      ),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final msg = messages[messages.length - 1 - index];
+                        final isMe = msg.senderId == _auth.currentUserId;
+                        return _MessageBubble(message: msg, isMe: isMe);
+                      },
+                    );
                   },
-                );
-              },
+                ),
+                if (!_isAtBottom || _newMessagesCountBelow > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16, bottom: 16),
+                    child: _ScrollDownButton(
+                      newCount: _newMessagesCountBelow,
+                      onTap: _goToBottom,
+                    ),
+                  ),
+              ],
             ),
           ),
           _InputBar(
@@ -163,6 +239,64 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             onAttach: _pickAndSendImage,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ScrollDownButton extends StatelessWidget {
+  const _ScrollDownButton({
+    required this.newCount,
+    required this.onTap,
+  });
+
+  final int newCount;
+  final VoidCallback onTap;
+
+  static const Color _accent = Color(0xFF81262B);
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 4,
+      shadowColor: Colors.black26,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 48,
+          height: 48,
+          alignment: Alignment.center,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(Icons.keyboard_arrow_down, size: 32, color: _accent),
+              if (newCount > 0)
+                Positioned(
+                  top: -4,
+                  right: -4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _accent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 20),
+                    child: Text(
+                      newCount > 99 ? '99+' : '$newCount',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

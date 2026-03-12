@@ -5,6 +5,7 @@ import '../../services/auth/auth_service.dart';
 import 'phone_input_screen.dart';
 import 'telegram_login_webview_screen.dart';
 import '../profile_create/name_screen.dart';
+import '../welcome/returning_user_welcome_screen.dart';
 
 class AuthOptionsScreen extends StatefulWidget {
   const AuthOptionsScreen({super.key});
@@ -140,10 +141,22 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
         authProvider: 'vk',
       );
       if (!context.mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const NameScreen()),
-      );
+      final profile = await auth.getUserProfile(auth.currentUserId!);
+      if (!context.mounted) return;
+      if (auth.isProfileRegistered(profile)) {
+        final name = profile?[kUserName]?.toString() ?? 'Пользователь';
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ReturningUserWelcomeScreen(userName: name),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const NameScreen()),
+        );
+      }
     } catch (e) {
       if (!context.mounted) return;
       final String msg = e.toString().contains('initSdk') || e.toString().contains('_initialized') || e.toString().contains('VK ID')

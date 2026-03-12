@@ -118,6 +118,7 @@ class FeedEventsBody extends StatefulWidget {
 class _FeedEventsBodyState extends State<FeedEventsBody> {
   final EventService _eventService = EventService();
   bool _loading = true;
+  String? _error;
   List<EventItem> _mySchedule = [];
   List<EventItem> _nearby = [];
   List<EventItem> _popular = [];
@@ -131,7 +132,10 @@ class _FeedEventsBodyState extends State<FeedEventsBody> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final my = await _eventService.getMyScheduleEvents(limit: 10);
       final near = await _eventService.getNearbyEvents(limit: 15);
@@ -145,9 +149,15 @@ class _FeedEventsBodyState extends State<FeedEventsBody> {
         _featured = near.isNotEmpty ? near.first : (pop.isNotEmpty ? pop.first : null);
         _venues = v;
         _loading = false;
+        _error = null;
       });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.toString();
+        });
+      }
     }
   }
 
@@ -207,6 +217,41 @@ class _FeedEventsBodyState extends State<FeedEventsBody> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: Color(0xFF81262B)));
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.cloud_off, size: 64, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              Text(
+                'Не удалось загрузить активности',
+                style: TextStyle(fontSize: 18, color: Colors.grey.shade800),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Повторить'),
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFF81262B)),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     if (widget.tabIndex == 1) {

@@ -8,13 +8,21 @@ import '../../services/auth/auth_service.dart';
 import '../../services/photo_storage_service.dart';
 import '../feed/feed_instruction_screen.dart';
 
-class ProfileCompletionScreen extends StatelessWidget {
+class ProfileCompletionScreen extends StatefulWidget {
   final ProfileDraft draft;
 
   const ProfileCompletionScreen({super.key, required this.draft});
 
   @override
+  State<ProfileCompletionScreen> createState() => _ProfileCompletionScreenState();
+}
+
+class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
+  bool _isLoading = false;
+
+  @override
   Widget build(BuildContext context) {
+    final draft = widget.draft;
     final name = draft.name.trim().isEmpty ? '!' : ', ${draft.name.trim()}!';
     String? mainPhotoPath;
     for (final p in draft.photos) {
@@ -112,33 +120,64 @@ class ProfileCompletionScreen extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () async {
+                        onPressed: _isLoading ? null : () async {
                           final auth = AuthService();
                           final uid = auth.currentUserId;
+                          if (uid == null) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Сначала войдите в аккаунт'), backgroundColor: Colors.red),
+                              );
+                            }
+                            return;
+                          }
+                          setState(() => _isLoading = true);
+                          await Future.delayed(const Duration(milliseconds: 400));
+                          if (!context.mounted) return;
                           try {
-                            if (uid != null) {
-                              final photoUrls = await PhotoStorageService().uploadUserPhotos(uid, draft.photos);
-                              final profileData = <String, dynamic>{
-                                kUserName: draft.name,
-                                kUserGender: draft.gender,
-                                kUserPreference: draft.preference,
-                                kUserBio: draft.bio,
-                                kUserCity: draft.city,
-                                kUserJob: draft.job,
-                                kUserEducation: draft.education,
-                                kUserPhotos: photoUrls,
-                              };
-                              if (draft.birthdate != null) {
-                                profileData[kUserBirthdate] = draft.birthdate!;
+                            List<String> photoUrls = [];
+                            try {
+                              photoUrls = await PhotoStorageService().uploadUserPhotos(uid, draft.photos);
+                            } catch (e) {
+                              if (context.mounted) {
+                                setState(() => _isLoading = false);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Фото не загрузились: $e'), backgroundColor: Colors.orange),
+                                );
                               }
+                              return;
+                            }
+                            final profileData = <String, dynamic>{
+                              kUserName: draft.name,
+                              kUserGender: draft.gender,
+                              kUserPreference: draft.preference,
+                              kUserBio: draft.bio,
+                              kUserCity: draft.city,
+                              kUserJob: draft.job,
+                              kUserEducation: draft.education,
+                              kUserPhotos: photoUrls,
+                            };
+                            if (draft.birthdate != null) {
+                              profileData[kUserBirthdate] = draft.birthdate!;
+                            }
+                            final exists = await auth.getUserProfile(uid);
+                            if (exists == null) {
+                              await auth.saveOrUpdateUser(
+                                uid: uid,
+                                authProvider: 'phone',
+                                profileData: profileData,
+                              );
+                            } else {
                               await auth.updateUserProfile(uid: uid, profileData: profileData);
                             }
                           } catch (e) {
                             if (context.mounted) {
+                              setState(() => _isLoading = false);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('Ошибка сохранения: $e'), backgroundColor: Colors.red),
                               );
                             }
+                            return;
                           }
                           if (!context.mounted) return;
                           Navigator.pushReplacement(
@@ -176,7 +215,9 @@ class ProfileCompletionScreen extends StatelessWidget {
               right: 16,
               child: IconButton(
                 icon: const Icon(Icons.close, color: Color(0xFF333333)),
-                onPressed: () {
+                onPressed: _isLoading
+                    ? null
+                    : () {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
@@ -186,6 +227,45 @@ class ProfileCompletionScreen extends StatelessWidget {
                 },
               ),
             ),
+            // Loading overlay
+            if (_isLoading)
+              Positioned.fill(
+                child: Container(
+                  color: const Color(0xFFF3F3F3),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF81262B)),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Настраиваем ленту...',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Загружаем фото',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

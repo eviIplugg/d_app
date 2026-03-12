@@ -16,20 +16,45 @@ class FeedService {
   Map<String, dynamic> currentFilter = {};
 
   /// Загрузить кандидатов по фильтрам (пол, возраст, верификация). Сортировка: сначала тот же город, остальные — по индексу.
+  /// При таймауте (deadline-exceeded) делает одну повторную попытку.
   Future<List<FeedUser>> getCandidates({int limit = 50}) async {
+    final uid = _auth.currentUserId;
+    if (uid == null) return [];
+    try {
+      return await _getCandidatesOnce(limit: limit);
+    } on FirebaseException catch (e) {
+      if (_isRetryable(e.code)) {
+        await Future.delayed(const Duration(milliseconds: 800));
+        try {
+          return await _getCandidatesOnce(limit: limit);
+        } catch (_) {
+          return [];
+        }
+      }
+      rethrow;
+    }
+  }
+
+  static bool _isRetryable(String? code) {
+    return code == 'deadline-exceeded' ||
+        code == 'unavailable' ||
+        code == 'resource-exhausted' ||
+        code == 'internal' ||
+        code == 'permission-denied';
+  }
+
+  Future<List<FeedUser>> _getCandidatesOnce({int limit = 50}) async {
     final uid = _auth.currentUserId;
     if (uid == null) return [];
 
     final swipedIds = await _getSwipedTargetIds(uid);
     swipedIds.add(uid);
 
-    final myProfile = await _auth.getUserProfile(uid);
+    Map<String, dynamic>? myProfile;
+    try {
+      myProfile = await _auth.getUserProfile(uid);
+    } catch (_) {}
     final myCity = myProfile?[kUserCity]?.toString();
-    final myBirthdate = myProfile?[kUserBirthdate];
-    DateTime? myBd;
-    if (myBirthdate is Timestamp) myBd = myBirthdate.toDate();
-    else if (myBirthdate is DateTime) myBd = myBirthdate;
-
     final filter = currentFilter;
     final gender = filter['gender'] as String?;
     final ageMin = (filter['ageMin'] is int) ? filter['ageMin'] as int : 18;
@@ -63,13 +88,6 @@ class FeedService {
     return list.take(limit).toList();
   }
 
-  int _ageFromBirthdate(DateTime bd) {
-    final now = DateTime.now();
-    int age = now.year - bd.year;
-    if (now.month < bd.month || (now.month == bd.month && now.day < bd.day)) age--;
-    return age;
-  }
-
   Future<Set<String>> _getSwipedTargetIds(String userId) async {
     final snap = await _firestore
         .collection(kSwipesCollection)
@@ -78,13 +96,14 @@ class FeedService {
     return snap.docs.map((d) => d.data()[kSwipeTargetUserId] as String?).whereType<String>().toSet();
   }
 
-  /// Записать свайп (like или pass). Возвращает true, если это мэтч (вторая сторона уже лайкнула).
-  Future<bool> recordSwipe({
+  /// Записать свайп (like или pass).
+  /// Возвращает matchId, если это мэтч (вторая сторона уже лайкнула), иначе null.
+  Future<String?> recordSwipe({
     required String targetUserId,
     required bool isLike,
   }) async {
     final uid = _auth.currentUserId;
-    if (uid == null) return false;
+    if (uid == null) return null;
 
     await _firestore.collection(kSwipesCollection).add({
       kSwipeUserId: uid,
@@ -93,12 +112,13 @@ class FeedService {
       kSwipeCreatedAt: FieldValue.serverTimestamp(),
     });
 
-    if (!isLike) return false;
+    if (!isLike) return null;
     return await _checkAndCreateMatch(uid, targetUserId);
   }
 
   /// Проверить, лайкал ли targetUserId текущего пользователя; если да — создать мэтч.
-  Future<bool> _checkAndCreateMatch(String userId, String targetUserId) async {
+  /// Возвращает matchId при мэтче, иначе null.
+  Future<String?> _checkAndCreateMatch(String userId, String targetUserId) async {
     final snap = await _firestore
         .collection(kSwipesCollection)
         .where(kSwipeUserId, isEqualTo: targetUserId)
@@ -107,7 +127,7 @@ class FeedService {
         .limit(1)
         .get();
 
-    if (snap.docs.isEmpty) return false;
+    if (snap.docs.isEmpty) return null;
 
     final id1 = userId.compareTo(targetUserId) <= 0 ? userId : targetUserId;
     final id2 = userId.compareTo(targetUserId) <= 0 ? targetUserId : userId;
@@ -122,7 +142,7 @@ class FeedService {
       kMatchUnreadCount2: 0,
     }, SetOptions(merge: true));
 
-    return true;
+    return matchId;
   }
 
   /// Получить данные пользователя по uid (для полного профиля).

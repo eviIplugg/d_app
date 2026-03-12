@@ -51,6 +51,33 @@ class AuthService {
     return snap.data();
   }
 
+  /// Найти существующего пользователя по Telegram ID (для проверки при входе через Telegram).
+  /// Возвращает данные документа пользователя (включая name) или null. Требует авторизации.
+  Future<Map<String, dynamic>?> findUserByTelegramId(String telegramUserId) async {
+    if (telegramUserId.trim().isEmpty) return null;
+    final snap = await _firestore
+        .collection(kUsersCollection)
+        .where(kUserTelegramUserId, isEqualTo: telegramUserId.trim())
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    final doc = snap.docs.first;
+    final data = doc.data();
+    data['uid'] = doc.id;
+    return data;
+  }
+
+  /// Проверить, что пользователь «полностью» зарегистрирован (есть имя и хотя бы пол или фото).
+  bool isProfileRegistered(Map<String, dynamic>? profile) {
+    if (profile == null) return false;
+    final name = profile[kUserName]?.toString().trim();
+    if (name == null || name.isEmpty) return false;
+    final hasGender = profile[kUserGender] != null && (profile[kUserGender] as String).isNotEmpty;
+    final photos = profile[kUserPhotos];
+    final hasPhotos = photos is List && photos.isNotEmpty;
+    return hasGender || hasPhotos;
+  }
+
   /// Вход по номеру телефона: отправка кода (SMS). При ошибке "unavailable" — повтор с задержкой.
   Future<String> sendPhoneCode(String phoneNumber) async {
     const maxAttempts = 3;
@@ -141,8 +168,33 @@ class AuthService {
     return _auth.signInWithCredential(credential);
   }
 
+  /// Вход через Telegram (виджет или данные из Telegram).
+  /// Только создаёт анонимную сессию и возвращает uid. Проверка по telegram id и сохранение — в экране.
+  Future<String?> signInAnonymouslyForTelegram() async {
+    final cred = await _auth.signInAnonymously();
+    return cred.user?.uid;
+  }
+
+  /// Сохранить/обновить профиль после входа через Telegram (имя и telegramUserId).
+  Future<void> saveTelegramUser({
+    required String uid,
+    required String telegramName,
+    String? telegramUserId,
+  }) async {
+    final String? normalizedPhone = null;
+    await saveOrUpdateUser(
+      uid: uid,
+      authProvider: 'telegram',
+      phoneNumber: normalizedPhone,
+      profileData: {
+        kUserName: telegramName.trim().isEmpty ? 'Пользователь' : telegramName.trim(),
+        if (telegramUserId != null && telegramUserId.isNotEmpty) kUserTelegramUserId: telegramUserId,
+      },
+    );
+  }
+
   /// Вход через Telegram (виджет или данные из Telegram). Создаёт анонимного пользователя Firebase и сохраняет имя в Firestore.
-  /// При временной недоступности Firestore — повтор с задержкой; после входа всегда возвращает uid, чтобы перейти к созданию профиля.
+  /// При временной недоступности Firestore — повтор с задержкой; после входа всегда возвращает uid.
   Future<String?> signInWithTelegram({
     String? phoneNumber,
     required String telegramName,
@@ -165,7 +217,7 @@ class AuthService {
           phoneNumber: normalizedPhone,
           profileData: {
             kUserName: telegramName.trim().isEmpty ? 'Пользователь' : telegramName.trim(),
-            if (telegramUserId != null && telegramUserId.isNotEmpty) 'telegramUserId': telegramUserId,
+            if (telegramUserId != null && telegramUserId.isNotEmpty) kUserTelegramUserId: telegramUserId,
           },
         );
         break;

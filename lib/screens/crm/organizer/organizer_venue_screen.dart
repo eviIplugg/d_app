@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../firebase/firestore_schema.dart';
 import '../../../services/organizer_crm_service.dart';
 
@@ -18,6 +21,7 @@ class _OrganizerVenueScreenState extends State<OrganizerVenueScreen> {
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
+  String? _photoPath;
   bool _saving = false;
 
   @override
@@ -29,6 +33,14 @@ class _OrganizerVenueScreenState extends State<OrganizerVenueScreen> {
       _addressController.text = d[kVenueAddress]?.toString() ?? '';
       _cityController.text = d[kVenueCity]?.toString() ?? '';
     }
+  }
+
+  Future<void> _pickPhoto() async {
+    final picker = ImagePicker();
+    final f = await picker.pickImage(imageQuality: 85, source: ImageSource.gallery);
+    if (f == null) return;
+    if (!mounted) return;
+    setState(() => _photoPath = f.path);
   }
 
   @override
@@ -50,6 +62,7 @@ class _OrganizerVenueScreenState extends State<OrganizerVenueScreen> {
       await _crm.saveVenue(
         venueId: widget.venueId,
         name: name,
+        photoFilePath: _photoPath,
         address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
         city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
       );
@@ -89,6 +102,37 @@ class _OrganizerVenueScreenState extends State<OrganizerVenueScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          GestureDetector(
+            onTap: _pickPhoto,
+            child: Container(
+              height: 140,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: _photoPath != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        File(_photoPath!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image)),
+                      ),
+                    )
+                  : Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_a_photo_outlined, color: Colors.grey.shade600),
+                          const SizedBox(height: 8),
+                          Text('Фото места', style: TextStyle(color: Colors.grey.shade600)),
+                        ],
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 16),
           _field('Название', _nameController, required: true),
           _field('Адрес', _addressController),
           _field('Город', _cityController),

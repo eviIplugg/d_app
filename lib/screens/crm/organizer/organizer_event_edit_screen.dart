@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../firebase/firestore_schema.dart';
 import '../../../services/organizer_crm_service.dart';
 
@@ -31,6 +34,8 @@ class _OrganizerEventEditScreenState extends State<OrganizerEventEditScreen> {
   DateTime _dateTime = DateTime.now().add(const Duration(days: 1));
   final _maxParticipantsController = TextEditingController();
   int _maxParticipants = 15;
+  String? _bannerPath;
+  List<String> _galleryPaths = [];
   bool _saving = false;
 
   @override
@@ -67,6 +72,26 @@ class _OrganizerEventEditScreenState extends State<OrganizerEventEditScreen> {
     super.dispose();
   }
 
+  Future<void> _pickBanner() async {
+    final picker = ImagePicker();
+    final f = await picker.pickImage(imageQuality: 85, source: ImageSource.gallery);
+    if (f == null) return;
+    if (!mounted) return;
+    setState(() => _bannerPath = f.path);
+  }
+
+  Future<void> _pickGallery() async {
+    final picker = ImagePicker();
+    final files = await picker.pickMultiImage(imageQuality: 85);
+    if (files.isEmpty) return;
+    if (!mounted) return;
+    setState(() {
+      for (final f in files) {
+        if (f.path.isNotEmpty) _galleryPaths.add(f.path);
+      }
+    });
+  }
+
   Future<void> _save() async {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
@@ -94,6 +119,8 @@ class _OrganizerEventEditScreenState extends State<OrganizerEventEditScreen> {
         maxParticipants: maxP,
         venueName: venue?['name']?.toString(),
         venueVerified: venue?['verified'] == true,
+        bannerFilePath: _bannerPath,
+        galleryFilePaths: _galleryPaths,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Сохранено')));
@@ -131,6 +158,79 @@ class _OrganizerEventEditScreenState extends State<OrganizerEventEditScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Баннер
+          GestureDetector(
+            onTap: _pickBanner,
+            child: Container(
+              height: 170,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: _bannerPath != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(File(_bannerPath!), fit: BoxFit.cover),
+                    )
+                  : Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_photo_alternate_outlined, color: Colors.grey.shade600),
+                          const SizedBox(height: 8),
+                          Text('Баннер мероприятия', style: TextStyle(color: Colors.grey.shade600)),
+                        ],
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Галерея
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Галерея', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+              TextButton.icon(
+                onPressed: _pickGallery,
+                icon: const Icon(Icons.add),
+                label: const Text('Добавить'),
+              ),
+            ],
+          ),
+          if (_galleryPaths.isNotEmpty)
+            SizedBox(
+              height: 90,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _galleryPaths.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final p = _galleryPaths[i];
+                  return Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.file(File(p), width: 120, height: 90, fit: BoxFit.cover),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: () => setState(() => _galleryPaths.removeAt(i)),
+                          child: const CircleAvatar(
+                            radius: 12,
+                            backgroundColor: Colors.black54,
+                            child: Icon(Icons.close, size: 16, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          if (_galleryPaths.isNotEmpty) const SizedBox(height: 12),
           _field('Название *', _titleController),
           _dropdown('Место проведения', _selectedVenueId, widget.venues, (v) => setState(() => _selectedVenueId = v)),
           _dateTimePicker(),

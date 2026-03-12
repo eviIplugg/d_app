@@ -89,6 +89,42 @@ class _FeedPostsBodyState extends State<FeedPostsBody> {
         StreamBuilder<List<FeedPost>>(
           stream: _postService.streamPosts(),
           builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return SliverFillRemaining(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.cloud_off, size: 64, color: Colors.grey.shade400),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Не удалось загрузить ленту',
+                          style: TextStyle(fontSize: 18, color: Colors.grey.shade800),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          snapshot.error?.toString() ?? 'Ошибка',
+                          style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                          textAlign: TextAlign.center,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton.icon(
+                          onPressed: () => setState(() {}),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Повторить'),
+                          style: FilledButton.styleFrom(backgroundColor: const Color(0xFF81262B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
             if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
               return const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: Color(0xFF81262B))));
             }

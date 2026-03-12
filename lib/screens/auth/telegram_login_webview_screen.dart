@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../config/telegram_config.dart';
+import '../../firebase/firestore_schema.dart';
 import '../../models/profile_draft.dart';
 import '../../services/auth/auth_service.dart';
 import '../profile_create/name_screen.dart';
+import '../welcome/returning_user_welcome_screen.dart';
+import '../welcome/welcome_screen.dart';
 
 /// Экран с официальным Telegram Login Widget. Данные только из Telegram.
 /// При успехе — переход на экран «Как вас зовут?» с именем из Telegram.
@@ -137,24 +140,77 @@ class _TelegramLoginWebViewScreenState extends State<TelegramLoginWebViewScreen>
     final name = fullName.isEmpty ? (username.isNotEmpty ? username : 'Пользователь') : fullName;
 
     try {
-      final uid = await auth.signInWithTelegram(
-        telegramName: name,
-        telegramUserId: id.isNotEmpty ? id : null,
-      );
+      final uid = await auth.signInAnonymouslyForTelegram();
       if (!context.mounted) return;
-      if (uid != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => NameScreen(draft: ProfileDraft(name: name)),
-          ),
-        );
-      } else {
+      if (uid == null) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Не удалось войти. Включите Anonymous в Firebase Console → Authentication.'),
             backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      if (id.isNotEmpty) {
+        final existing = await auth.findUserByTelegramId(id);
+        if (!context.mounted) return;
+        if (existing != null) {
+          final existingUid = existing['uid']?.toString();
+          if (existingUid != null && existingUid != uid) {
+            await auth.signOut();
+            if (!context.mounted) return;
+            setState(() => _isProcessing = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Этот Telegram уже привязан к другому аккаунту. Войдите на том устройстве.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+            );
+            return;
+          }
+          if (existingUid == uid && auth.isProfileRegistered(existing)) {
+            final displayName = existing[kUserName]?.toString() ?? name;
+            setState(() => _isProcessing = false);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ReturningUserWelcomeScreen(userName: displayName),
+              ),
+            );
+            return;
+          }
+        }
+      }
+
+      await auth.saveTelegramUser(
+        uid: uid,
+        telegramName: name,
+        telegramUserId: id.isNotEmpty ? id : null,
+      );
+      if (!context.mounted) return;
+      final profile = await auth.getUserProfile(uid);
+      if (!context.mounted) return;
+      if (auth.isProfileRegistered(profile)) {
+        final displayName = profile?[kUserName]?.toString() ?? name;
+        setState(() => _isProcessing = false);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ReturningUserWelcomeScreen(userName: displayName),
+          ),
+        );
+      } else {
+        setState(() => _isProcessing = false);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NameScreen(draft: ProfileDraft(name: name)),
           ),
         );
       }

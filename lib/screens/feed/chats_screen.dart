@@ -134,9 +134,9 @@ class _HorizontalContactsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: SizedBox(
-        height: 72,
+        height: 80,
         child: ListView(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -164,16 +164,19 @@ class _AddContactChip extends StatelessWidget {
       padding: const EdgeInsets.only(right: 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircleAvatar(
-            radius: 28,
+            radius: 26,
             backgroundColor: Colors.grey.shade300,
-            child: const Icon(Icons.add, color: Colors.white, size: 28),
+            child: const Icon(Icons.add, color: Colors.white, size: 26),
           ),
           const SizedBox(height: 4),
           Text(
             'Добавить',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -196,6 +199,7 @@ class _ContactAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
           decoration: hasStory
@@ -205,7 +209,7 @@ class _ContactAvatar extends StatelessWidget {
                 )
               : null,
           child: CircleAvatar(
-            radius: 28,
+            radius: 26,
             backgroundImage: photoUrl != null ? NetworkImage(photoUrl!) : null,
             child: photoUrl == null ? const Icon(Icons.person, color: Colors.grey) : null,
           ),
@@ -218,7 +222,7 @@ class _ContactAvatar extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
           ),
         ),
       ],

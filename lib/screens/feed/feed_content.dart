@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/feed_user.dart';
 import '../../services/auth/auth_service.dart';
 import '../../services/feed_service.dart';
+import '../feed/chat_conversation_screen.dart';
 import 'widgets/feed_card.dart';
 import 'feed_full_profile_sheet.dart';
 import 'feed_match_dialog.dart';
@@ -21,25 +23,47 @@ class FeedContentState extends State<FeedContent> {
   final FeedService _feedService = FeedService();
   List<FeedUser> _candidates = [];
   bool _loading = true;
+  String? _error;
   double _dragOffset = 0;
   static const double _swipeThreshold = 100;
 
   @override
   void initState() {
     super.initState();
-    _loadCandidates();
+    // Небольшая задержка, чтобы токен анонимного/только что вошедшего пользователя успел подставиться в запросы.
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      _loadCandidates();
+    });
   }
 
   void loadCandidates() => _loadCandidates();
 
   Future<void> _loadCandidates() async {
-    setState(() => _loading = true);
-    final list = await _feedService.getCandidates();
-    if (!mounted) return;
     setState(() {
-      _candidates = list;
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
+    try {
+      final list = await _feedService.getCandidates();
+      if (!mounted) return;
+      setState(() {
+        _candidates = list;
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      final String message = e is FirebaseException
+          ? (e.code == 'permission-denied'
+              ? 'Нет доступа. Выйдите из аккаунта и войдите снова.'
+              : e.message ?? e.code)
+          : e.toString();
+      setState(() {
+        _loading = false;
+        _error = message;
+      });
+    }
   }
 
   void _onSwipe(FeedUser user, bool isLike) async {
@@ -48,19 +72,32 @@ class FeedContentState extends State<FeedContent> {
       _candidates = _candidates.where((c) => c.uid != user.uid).toList();
       _dragOffset = 0;
     });
-    final isMatch = await _feedService.recordSwipe(targetUserId: user.uid, isLike: isLike);
+    final matchId = await _feedService.recordSwipe(targetUserId: user.uid, isLike: isLike);
     if (!mounted) return;
-    if (isMatch) {
+    if (matchId != null) {
       final other = await _feedService.getUser(user.uid);
       final me = AuthService().currentUserId != null ? await _feedService.getUser(AuthService().currentUserId!) : null;
       if (!mounted) return;
+      final matched = other ?? user;
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => FeedMatchDialog(
           currentUser: me,
-          matchedUser: other ?? user,
-          onStartChat: () => Navigator.pop(ctx),
+          matchedUser: matched,
+          onStartChat: () {
+            Navigator.pop(ctx);
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (context) => ChatConversationScreen(
+                  matchId: matchId,
+                  otherUserId: matched.uid,
+                  otherName: matched.name,
+                  otherPhotoUrl: matched.photoUrls.isNotEmpty ? matched.photoUrls.first : null,
+                ),
+              ),
+            );
+          },
           onPlanActivity: () => Navigator.pop(ctx),
           onClose: () => Navigator.pop(ctx),
         ),
@@ -106,6 +143,40 @@ class FeedContentState extends State<FeedContent> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.cloud_off, size: 64, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              Text(
+                'Не удалось загрузить анкеты',
+                style: TextStyle(fontSize: 18, color: Colors.grey.shade800),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: _loadCandidates,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Повторить'),
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFF81262B)),
+              ),
+            ],
+          ),
+        ),
+      );
     }
     if (_candidates.isEmpty) {
       return Center(

@@ -37,6 +37,7 @@ const String kUserEducation = 'education';
 const String kUserVerificationStatus = 'verificationStatus'; // 'none' | 'pending' | 'verified'
 const String kUserPhoneNumber = 'phoneNumber'; // E.164 для входа по телефону
 const String kUserAuthProvider = 'authProvider'; // 'phone' | 'google' | 'vk' | 'yandex'
+const String kUserTelegramUserId = 'telegramUserId'; // id из Telegram Login Widget
 const String kUserCreatedAt = 'createdAt'; // Timestamp
 const String kUserUpdatedAt = 'updatedAt'; // Timestamp
 const String kUserLastActiveAt = 'lastActiveAt'; // Timestamp
