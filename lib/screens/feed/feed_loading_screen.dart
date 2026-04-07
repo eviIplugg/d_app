@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'main_app_shell.dart';
+import '../../navigation/post_auth_home.dart';
 
 /// Окно подгрузки: «Подбираем для вас пользователей» — показывается перед главным экраном с лентой.
 class FeedLoadingScreen extends StatefulWidget {
@@ -17,7 +17,7 @@ class _FeedLoadingScreenState extends State<FeedLoadingScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const MainAppShell()),
+        MaterialPageRoute<void>(builder: (context) => PostAuthHome.shell),
       );
     });
   }

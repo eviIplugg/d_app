@@ -17,6 +17,8 @@ class ChatListItem {
   final DateTime? lastMessageAt;
   final String? lastMessageSenderId;
   final int unreadCount;
+  /// Последняя активность собеседника (для «в сети»).
+  final DateTime? otherLastActiveAt;
 
   ChatListItem({
     required this.matchId,
@@ -27,6 +29,7 @@ class ChatListItem {
     this.lastMessageAt,
     this.lastMessageSenderId,
     this.unreadCount = 0,
+    this.otherLastActiveAt,
   });
 }
 
@@ -86,6 +89,7 @@ class ChatService {
       final id1 = d[kMatchUserId1] as String?;
       final id2 = d[kMatchUserId2] as String?;
       if (id1 == null || id2 == null) return;
+      if (id1 != uid && id2 != uid) return;
       final matchId = doc.id;
       if (seen.contains(matchId)) return;
       seen.add(matchId);
@@ -108,37 +112,51 @@ class ChatService {
       process(doc);
     }
 
-    // Загрузить данные чата и профили других пользователей
-    for (var i = 0; i < list.length; i++) {
-      final item = list[i];
-      final chatDoc = await _firestore.collection(kChatsCollection).doc(item.matchId).get();
-      final userDoc = await _firestore.collection(kUsersCollection).doc(item.otherUserId).get();
-      final userData = userDoc.data();
-      final name = userData?[kUserName]?.toString() ?? 'Пользователь';
-      final photos = userData?[kUserPhotos];
-      final photoUrl = photos is List && photos.isNotEmpty ? photos.first?.toString() : null;
+    // Параллельно: чат + профиль по каждому мэтчу (раньше было N последовательных round-trip).
+    if (list.isNotEmpty) {
+      final enriched = await Future.wait(
+        list.map((item) async {
+          final pair = await Future.wait<DocumentSnapshot<Map<String, dynamic>>>([
+            _firestore.collection(kChatsCollection).doc(item.matchId).get(),
+            _firestore.collection(kUsersCollection).doc(item.otherUserId).get(),
+          ]);
+          final chatDoc = pair[0];
+          final userDoc = pair[1];
+          final userData = userDoc.data();
+          final name = userData?[kUserName]?.toString() ?? 'Пользователь';
+          final photos = userData?[kUserPhotos];
+          final photoUrl = photos is List && photos.isNotEmpty ? photos.first?.toString() : null;
+          DateTime? otherLastActive;
+          final la = userData?[kUserLastActiveAt];
+          if (la is Timestamp) otherLastActive = la.toDate();
 
-      String? preview;
-      DateTime? lastAt;
-      String? lastSenderId;
-      if (chatDoc.exists && chatDoc.data() != null) {
-        final chatData = chatDoc.data()!;
-        preview = chatData[kChatLastMessagePreview]?.toString();
-        lastSenderId = chatData[kChatLastMessageSenderId]?.toString();
-        final t = chatData[kChatLastMessageAt];
-        if (t is Timestamp) lastAt = t.toDate();
-      }
+          String? preview;
+          DateTime? lastAt;
+          String? lastSenderId;
+          if (chatDoc.exists && chatDoc.data() != null) {
+            final chatData = chatDoc.data()!;
+            preview = chatData[kChatLastMessagePreview]?.toString();
+            lastSenderId = chatData[kChatLastMessageSenderId]?.toString();
+            final t = chatData[kChatLastMessageAt];
+            if (t is Timestamp) lastAt = t.toDate();
+          }
 
-      list[i] = ChatListItem(
-        matchId: item.matchId,
-        otherUserId: item.otherUserId,
-        otherName: name,
-        otherPhotoUrl: photoUrl,
-        lastMessagePreview: preview,
-        lastMessageAt: lastAt,
-        lastMessageSenderId: lastSenderId,
-        unreadCount: item.unreadCount,
+          return ChatListItem(
+            matchId: item.matchId,
+            otherUserId: item.otherUserId,
+            otherName: name,
+            otherPhotoUrl: photoUrl,
+            lastMessagePreview: preview,
+            lastMessageAt: lastAt,
+            lastMessageSenderId: lastSenderId,
+            unreadCount: item.unreadCount,
+            otherLastActiveAt: otherLastActive,
+          );
+        }),
       );
+      list
+        ..clear()
+        ..addAll(enriched);
     }
 
     list.sort((a, b) {
@@ -167,14 +185,24 @@ class ChatService {
     StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? subA;
     StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? subB;
 
+    Timer? debounce;
     controller = StreamController<List<ChatListItem>>(onListen: () async {
       controller.add(await getChatList());
-      void onUpdate(_) async {
-        controller.add(await getChatList());
+      void onUpdate(_) {
+        debounce?.cancel();
+        debounce = Timer(const Duration(milliseconds: 400), () async {
+          if (controller.isClosed) return;
+          try {
+            controller.add(await getChatList());
+          } catch (_) {
+            if (!controller.isClosed) controller.add(<ChatListItem>[]);
+          }
+        });
       }
       subA = a.listen(onUpdate);
       subB = b.listen(onUpdate);
     }, onCancel: () {
+      debounce?.cancel();
       subA?.cancel();
       subB?.cancel();
     });
@@ -281,9 +309,10 @@ class ChatService {
     if (!matchDoc.exists) return;
     final d = matchDoc.data()!;
     final id1 = d[kMatchUserId1] as String?;
+    final id2 = d[kMatchUserId2] as String?;
     if (id1 == uid) {
       await _firestore.collection(kMatchesCollection).doc(chatId).update({kMatchUnreadCount1: 0});
-    } else {
+    } else if (id2 == uid) {
       await _firestore.collection(kMatchesCollection).doc(chatId).update({kMatchUnreadCount2: 0});
     }
   }

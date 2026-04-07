@@ -1,5 +1,6 @@
 class ProfileDraft {
   String name;
+  String surname;
   DateTime? birthdate;
   String? gender; // 'male' | 'female'
   String? preference; // 'men' | 'women' | 'everyone'
@@ -10,10 +11,12 @@ class ProfileDraft {
   String bio;
   String city;
   String job;
-  String education;
+  String educationLevel; // ключ из kEducationLevels
+  String university;
 
   ProfileDraft({
     this.name = '',
+    this.surname = '',
     this.birthdate,
     this.gender,
     this.preference,
@@ -21,7 +24,8 @@ class ProfileDraft {
     this.bio = '',
     this.city = '',
     this.job = '',
-    this.education = '',
+    this.educationLevel = '',
+    this.university = '',
   }) : photos = photos ?? List<String?>.filled(6, null);
 }
 

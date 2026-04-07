@@ -121,7 +121,9 @@ class PostService {
   /// Переключить лайк поста для текущего пользователя.
   Future<void> toggleLike(String postId) async {
     final uid = _uid;
-    if (uid == null) return;
+    if (uid == null) {
+      throw StateError('Необходимо войти в аккаунт');
+    }
 
     final ref = _firestore.collection(kPostsCollection).doc(postId);
     await _firestore.runTransaction((tx) async {
@@ -132,7 +134,7 @@ class PostService {
       final count = (data[kPostLikeCount] as int?) ?? 0;
       if (likedBy.contains(uid)) {
         likedBy.remove(uid);
-        tx.update(ref, {kPostLikedBy: likedBy, kPostLikeCount: count - 1});
+        tx.update(ref, {kPostLikedBy: likedBy, kPostLikeCount: count > 0 ? count - 1 : 0});
       } else {
         likedBy.add(uid);
         tx.update(ref, {kPostLikedBy: likedBy, kPostLikeCount: count + 1});

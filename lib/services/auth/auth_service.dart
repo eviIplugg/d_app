@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:vkid_flutter_sdk/library_vkid.dart' hide User;
 import '../../firebase/firestore_schema.dart';
 
@@ -44,11 +45,77 @@ class AuthService {
     return snap.docs.isNotEmpty;
   }
 
-  /// Получить профиль пользователя из Firestore (для синхронизации на сплеше).
-  Future<Map<String, dynamic>?> getUserProfile(String uid) async {
+  final Map<String, Map<String, dynamic>?> _profileCache = {};
+
+  /// Web: результат `signInWithPhoneNumber`, подтверждается через [signInWithPhoneCode].
+  ConfirmationResult? _webPhoneConfirmation;
+
+  /// Специальное значение [PhoneAuthCredential.verificationId] на web (код подтверждает [ConfirmationResult]).
+  static const String kWebPhoneVerificationId = '__WEB_PHONE__';
+
+  DateTime? _lastPresenceWriteLocal;
+
+  /// Обновить время последней активности (для «в сети»). Не чаще чем раз в [minInterval], чтобы не спамить Firestore.
+  Future<void> touchLastActive({Duration minInterval = const Duration(seconds: 45)}) async {
+    final uid = currentUserId;
+    if (uid == null) return;
+    final now = DateTime.now();
+    if (_lastPresenceWriteLocal != null && now.difference(_lastPresenceWriteLocal!) < minInterval) {
+      return;
+    }
+    _lastPresenceWriteLocal = now;
+    try {
+      await _firestore.collection(kUsersCollection).doc(uid).set(
+        {kUserLastActiveAt: FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+    } catch (_) {
+      // сеть / правила — не падаем
+    }
+  }
+
+  /// Получить профиль пользователя из Firestore (для синхронизации на сплеше). Результат кешируется в памяти.
+  Future<Map<String, dynamic>?> getUserProfile(String uid, {bool forceRefresh = false}) async {
+    if (uid.isEmpty) return null;
+    if (!forceRefresh && _profileCache.containsKey(uid)) return _profileCache[uid];
     final snap = await _firestore.collection(kUsersCollection).doc(uid).get();
-    if (!snap.exists) return null;
-    return snap.data();
+    if (!snap.exists) {
+      _profileCache[uid] = null;
+      return null;
+    }
+    final data = snap.data();
+    _profileCache[uid] = data;
+    return data;
+  }
+
+  /// Сбросить кеш профиля (вызывать после updateUserProfile / saveOrUpdateUser для этого uid).
+  void _invalidateProfileCache(String uid) {
+    _profileCache.remove(uid);
+  }
+
+  void clearAllProfileCache() {
+    _profileCache.clear();
+  }
+
+  /// Привязать Telegram к уже вошедшему аккаунту (не меняет основной authProvider).
+  /// Возвращает null при успехе, иначе текст ошибки.
+  Future<String?> linkTelegramToCurrentUser({required String telegramUserId}) async {
+    final uid = currentUserId;
+    if (uid == null) return 'Выполните вход в аккаунт';
+    final id = telegramUserId.trim();
+    if (id.isEmpty) return 'Не получен ID Telegram';
+    final existing = await findUserByTelegramId(id);
+    if (existing != null) {
+      final other = existing['uid']?.toString();
+      if (other != null && other != uid) {
+        return 'Этот Telegram уже привязан к другому аккаунту';
+      }
+    }
+    await updateUserProfile(
+      uid: uid,
+      profileData: {kUserTelegramUserId: id},
+    );
+    return null;
   }
 
   /// Найти существующего пользователя по Telegram ID (для проверки при входе через Telegram).
@@ -78,6 +145,13 @@ class AuthService {
     return hasGender || hasPhotos;
   }
 
+  /// Есть ли в профиле имя (для входа в существующий аккаунт — показать «Добро пожаловать» и зайти в приложение).
+  bool hasProfileWithName(Map<String, dynamic>? profile) {
+    if (profile == null) return false;
+    final name = profile[kUserName]?.toString().trim();
+    return name != null && name.isNotEmpty;
+  }
+
   /// Вход по номеру телефона: отправка кода (SMS). При ошибке "unavailable" — повтор с задержкой.
   Future<String> sendPhoneCode(String phoneNumber) async {
     const maxAttempts = 3;
@@ -102,6 +176,10 @@ class AuthService {
 
   Future<String> _sendPhoneCodeOnce(String phoneNumber) async {
     final normalized = _normalizePhone(phoneNumber);
+    if (kIsWeb) {
+      _webPhoneConfirmation = await _auth.signInWithPhoneNumber(normalized);
+      return kWebPhoneVerificationId;
+    }
     final completer = Completer<String>();
     await _auth.verifyPhoneNumber(
       phoneNumber: normalized,
@@ -127,8 +205,18 @@ class AuthService {
   int? _lastResendToken;
   int? get lastResendToken => _lastResendToken;
 
-  /// Вход по коду из SMS.
+  /// Вход по коду из SMS (на web — код для [ConfirmationResult]).
   Future<UserCredential> signInWithPhoneCode(String verificationId, String code) async {
+    if (kIsWeb && verificationId == kWebPhoneVerificationId) {
+      final cr = _webPhoneConfirmation;
+      if (cr == null) {
+        throw FirebaseAuthException(
+          code: 'invalid-verification-id',
+          message: 'Сначала запросите код на номер',
+        );
+      }
+      return cr.confirm(code);
+    }
     final credential = PhoneAuthProvider.credential(
       verificationId: verificationId,
       smsCode: code,
@@ -173,6 +261,13 @@ class AuthService {
   Future<String?> signInAnonymouslyForTelegram() async {
     final cred = await _auth.signInAnonymously();
     return cred.user?.uid;
+  }
+
+  /// Вход по custom token (Cloud Function `telegramSignIn` для существующего аккаунта Telegram).
+  Future<UserCredential> signInWithCustomToken(String token) async {
+    final cred = await _auth.signInWithCustomToken(token);
+    clearAllProfileCache();
+    return cred;
   }
 
   /// Сохранить/обновить профиль после входа через Telegram (имя и telegramUserId).
@@ -239,6 +334,8 @@ class AuthService {
       final vkid = await VKID.getInstance();
       vkid.logout();
     } catch (_) {}
+    _profileCache.clear();
+    _webPhoneConfirmation = null;
     await _auth.signOut();
   }
 
@@ -267,6 +364,7 @@ class AuthService {
       data[kUserVerificationStatus] = 'none';
       await ref.set(data);
     }
+    _invalidateProfileCache(uid);
   }
 
   /// Обновление профиля пользователя (имя, био, фото и т.д.) без смены authProvider.
@@ -288,6 +386,7 @@ class AuthService {
     data[kUserUpdatedAt] = FieldValue.serverTimestamp();
     data[kUserLastActiveAt] = FieldValue.serverTimestamp();
     await ref.set(data, SetOptions(merge: true));
+    _invalidateProfileCache(uid);
   }
 
   static String _normalizePhone(String phone) {

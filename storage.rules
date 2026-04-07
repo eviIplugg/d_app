@@ -2,13 +2,18 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
+    function isAdmin() {
+      return request.auth != null &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('role', '') == 'admin';
+    }
+
     // ----- USER PHOTOS -----
     // Путь: users/{userId}/photos/{photoFile}
     match /users/{userId}/photos/{photoFile} {
       // Читать может любой авторизованный (для показа анкет).
       allow read: if request.auth != null;
       // Загружать/удалять может только владелец.
-      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update, delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
 
     // ----- POST PHOTOS -----
@@ -17,7 +22,7 @@ service firebase.storage {
       // Читать может любой авторизованный (лента постов).
       allow read: if request.auth != null;
       // Писать может только автор поста (userId == uid).
-      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update, delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
 
     // ----- CHAT PHOTOS -----
@@ -28,6 +33,13 @@ service firebase.storage {
     // Альтернативный путь (если позже будет вложенная структура)
     match /chats/{chatId}/messages/{messageId}/{photoFile} {
       allow read, write: if request.auth != null;
+    }
+
+    // ----- STORIES PHOTOS -----
+    // Путь: stories/{userId}/{storyFile}
+    match /stories/{userId}/{storyFile} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
 
     // Всё остальное запрещено.

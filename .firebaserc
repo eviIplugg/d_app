@@ -1,5 +1,19 @@
 {
   "projects": {
-    "default": "dating-app-34f38"
-  }
+    "default": "dating-app-34f38",
+    "ringme": "dating-app-34f38"
+  },
+  "targets": {
+    "dating-app-34f38": {
+      "hosting": {
+        "landing": [
+          "auth-ringme"
+        ],
+        "crm": [
+          "ringme"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

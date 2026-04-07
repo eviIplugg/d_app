@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../firebase/firestore_schema.dart';
 import '../../../services/auth/auth_service.dart';
+import '../../../utils/education_levels.dart';
 import '../../welcome/welcome_screen.dart';
+import '../edit_profile_screen.dart';
 import 'settings_privacy_screen.dart';
 import 'settings_notifications_screen.dart';
 import 'settings_help_screen.dart';
@@ -51,6 +53,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  void _openEditProfile() async {
+    final updated = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
+    if (updated == true && mounted) _loadProfile();
+  }
+
   String _name() => _profile?[kUserName]?.toString() ?? '—';
   String _birthdate() {
     final b = _profile?[kUserBirthdate];
@@ -86,40 +93,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (g == 'relationship') return 'Отношения';
     return '—';
   }
+  String _surname() => _profile?[kUserSurname]?.toString() ?? '—';
   String _city() => _profile?[kUserCity]?.toString() ?? '—';
   String _bio() => _profile?[kUserBio]?.toString() ?? '—';
   String _job() => _profile?[kUserJob]?.toString() ?? '—';
-  String _education() => _profile?[kUserEducation]?.toString() ?? '—';
+  String _educationLevel() {
+    final key = _profile?[kUserEducationLevel]?.toString();
+    if (key == null || key.isEmpty) return '—';
+    return educationLevelLabel(key) ?? key;
+  }
+  String _university() => _profile?[kUserUniversity]?.toString() ?? '—';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF333333)),
+          icon: const Icon(Icons.arrow_back_ios),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Настройки',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
-        ),
+        title: const Text('Настройки'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           _sectionTitle('Основное'),
-          _tile('Имя', _name()),
-          _tile('Дата рождения', _birthdate()),
-          _tile('Пол', _gender()),
-          _tile('Город', _city()),
-          _tile('Кого ищу', _preference()),
-          _tile('Цель знакомства', _relationshipGoal()),
-          _tile('О себе', _bio().isEmpty || _bio() == '—' ? '—' : _bio()),
-          _tile('Работа', _job()),
-          _tile('Образование', _education()),
+          _tileWithNav('Имя', subtitle: _name(), onTap: _openEditProfile),
+          _tileWithNav('Фамилия', subtitle: _surname(), onTap: _openEditProfile),
+          _tileWithNav('Дата рождения', subtitle: _birthdate(), onTap: _openEditProfile),
+          _tileWithNav('Пол', subtitle: _gender(), onTap: _openEditProfile),
+          _tileWithNav('Город', subtitle: _city(), onTap: _openEditProfile),
+          _tileWithNav('Кого ищу', subtitle: _preference(), onTap: _openEditProfile),
+          _tileWithNav('Цель знакомства', subtitle: _relationshipGoal(), onTap: _openEditProfile),
+          _tileWithNav('О себе', subtitle: _bio().isEmpty || _bio() == '—' ? '—' : _bio(), onTap: _openEditProfile),
+          _tileWithNav('Работа', subtitle: _job(), onTap: _openEditProfile),
+          _tileWithNav('Уровень образования', subtitle: _educationLevel(), onTap: _openEditProfile),
+          _tileWithNav('Вуз', subtitle: _university(), onTap: _openEditProfile),
           _tileWithNav('Способы входа', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginMethodsScreen()))),
           const SizedBox(height: 24),
           _sectionTitle('Приложение'),
@@ -139,53 +148,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _sectionTitle(String title) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, left: 4),
       child: Text(
         title,
-        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
-      ),
-    );
-  }
-
-  Widget _tile(String title, String value) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        title: Text(title, style: const TextStyle(fontSize: 16)),
-        subtitle: value != '—' ? Text(value, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)) : null,
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
 
   Widget _tileWithNav(String title, {String? subtitle, VoidCallback? onTap}) {
+    final theme = Theme.of(context);
+    final hasSubtitle = subtitle != null && subtitle != '—';
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardTheme.color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
-        title: Text(title, style: const TextStyle(fontSize: 16)),
-        subtitle: subtitle != null ? Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)) : null,
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-        onTap: onTap ?? () {},
+        title: Text(title, style: theme.textTheme.bodyLarge),
+        subtitle: hasSubtitle ? Text(subtitle, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)) : null,
+        trailing: onTap != null ? Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant) : null,
+        onTap: onTap,
       ),
     );
   }
 
+
   Widget _logoutTile() {
+    final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardTheme.color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
-        title: const Text('Выйти', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFFB71C1C))),
+        title: Text('Выйти', style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.error)),
         onTap: () async {
           final ok = await showDialog<bool>(
             context: context,
@@ -194,7 +197,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               content: const Text('Вы уверены, что хотите выйти из аккаунта?'),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
-                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Выйти', style: TextStyle(color: Color(0xFFB71C1C)))),
+                TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Выйти', style: TextStyle(color: theme.colorScheme.error))),
               ],
             ),
           );

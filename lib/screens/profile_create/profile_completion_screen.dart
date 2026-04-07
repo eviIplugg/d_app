@@ -149,12 +149,14 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                             }
                             final profileData = <String, dynamic>{
                               kUserName: draft.name,
+                              if (draft.surname.isNotEmpty) kUserSurname: draft.surname,
                               kUserGender: draft.gender,
                               kUserPreference: draft.preference,
                               kUserBio: draft.bio,
-                              kUserCity: draft.city,
-                              kUserJob: draft.job,
-                              kUserEducation: draft.education,
+                              kUserCity: draft.city.isNotEmpty ? draft.city : null,
+                              kUserJob: draft.job.isNotEmpty ? draft.job : null,
+                              if (draft.educationLevel.isNotEmpty) kUserEducationLevel: draft.educationLevel,
+                              if (draft.university.isNotEmpty) kUserUniversity: draft.university,
                               kUserPhotos: photoUrls,
                             };
                             if (draft.birthdate != null) {

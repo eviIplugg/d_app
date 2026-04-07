@@ -1,10 +1,13 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../firebase/firestore_schema.dart';
 import '../../services/auth/auth_service.dart';
 import '../../services/chat_service.dart';
+import '../../utils/presence_utils.dart';
 
 /// Экран переписки: сообщения (входящие слева/серые, исходящие справа/оранжевые), ввод и отправка текста/фото.
 class ChatConversationScreen extends StatefulWidget {
@@ -146,9 +149,36 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                 color: Color(0xFF333333),
               ),
             ),
-            Text(
-              'В сети',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection(kUsersCollection)
+                  .doc(widget.otherUserId)
+                  .snapshots(),
+              builder: (context, snap) {
+                DateTime? dt;
+                final d = snap.data?.data();
+                if (d != null) {
+                  final la = d[kUserLastActiveAt];
+                  if (la is Timestamp) dt = la.toDate();
+                }
+                final label = PresenceUtils.shortLabel(dt);
+                if (label.isEmpty) {
+                  return Text(
+                    'активность неизвестна',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  );
+                }
+                return Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: PresenceUtils.isOnlineNow(dt)
+                        ? const Color(0xFF2E7D32)
+                        : Colors.grey.shade600,
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -158,8 +188,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             padding: const EdgeInsets.only(right: 12),
             child: CircleAvatar(
               radius: 20,
-              backgroundImage:
-                  widget.otherPhotoUrl != null ? NetworkImage(widget.otherPhotoUrl!) : null,
+              backgroundImage: widget.otherPhotoUrl != null
+                  ? ResizeImage(NetworkImage(widget.otherPhotoUrl!), width: 80, height: 80)
+                  : null,
               child: widget.otherPhotoUrl == null ? const Icon(Icons.person, color: Colors.grey) : null,
             ),
           ),
@@ -207,6 +238,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                     return ListView.builder(
                       controller: _scrollController,
                       reverse: true,
+                      cacheExtent: 400,
                       padding: const EdgeInsets.only(
                         left: 12,
                         right: 12,
@@ -217,7 +249,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                       itemBuilder: (context, index) {
                         final msg = messages[messages.length - 1 - index];
                         final isMe = msg.senderId == _auth.currentUserId;
-                        return _MessageBubble(message: msg, isMe: isMe);
+                        return RepaintBoundary(
+                          child: _MessageBubble(message: msg, isMe: isMe),
+                        );
                       },
                     );
                   },

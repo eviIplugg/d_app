@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 
 import '../../firebase/firestore_schema.dart';
 import '../../services/auth/auth_service.dart';
+import '../../utils/education_levels.dart';
+import '../city_picker_screen.dart';
 
-/// Экран редактирования профиля: имя, дата рождения, пол, кого ищу, город, о себе, работа, образование, цель.
+/// Экран редактирования профиля: имя, фамилия, дата рождения, пол, кого ищу, город, о себе, работа, уровень образования, вуз, цель.
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -16,10 +18,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _cityController = TextEditingController();
+  final _surnameController = TextEditingController();
   final _bioController = TextEditingController();
   final _jobController = TextEditingController();
-  final _educationController = TextEditingController();
+  final _universityController = TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
@@ -27,6 +29,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String _gender = 'male';
   String _preference = 'women';
   String _relationshipGoal = 'friendship';
+  String _city = '';
+  String _educationLevel = '';
 
   static const Color _accent = Color(0xFF81262B);
 
@@ -48,10 +52,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _loading = false;
       if (profile != null) {
         _nameController.text = profile[kUserName]?.toString() ?? '';
-        _cityController.text = profile[kUserCity]?.toString() ?? '';
+        _surnameController.text = profile[kUserSurname]?.toString() ?? '';
+        _city = profile[kUserCity]?.toString() ?? '';
         _bioController.text = profile[kUserBio]?.toString() ?? '';
         _jobController.text = profile[kUserJob]?.toString() ?? '';
-        _educationController.text = profile[kUserEducation]?.toString() ?? '';
+        _educationLevel = profile[kUserEducationLevel]?.toString() ?? '';
+        _universityController.text = profile[kUserUniversity]?.toString() ?? '';
         final b = profile[kUserBirthdate];
         if (b is Timestamp) _birthdate = b.toDate();
         else if (b is DateTime) _birthdate = b;
@@ -77,13 +83,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       await _auth.updateUserProfile(uid: uid, profileData: {
         kUserName: _nameController.text.trim(),
+        kUserSurname: _surnameController.text.trim().isEmpty ? null : _surnameController.text.trim(),
         kUserBirthdate: _birthdate!,
         kUserGender: _gender,
         kUserPreference: _preference,
-        kUserCity: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
+        kUserCity: _city.trim().isEmpty ? null : _city.trim(),
         kUserBio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
         kUserJob: _jobController.text.trim().isEmpty ? null : _jobController.text.trim(),
-        kUserEducation: _educationController.text.trim().isEmpty ? null : _educationController.text.trim(),
+        kUserEducationLevel: _educationLevel.isEmpty ? null : _educationLevel,
+        kUserUniversity: _universityController.text.trim().isEmpty ? null : _universityController.text.trim(),
         kUserRelationshipGoal: _relationshipGoal,
       });
       if (!mounted) return;
@@ -104,10 +112,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _cityController.dispose();
+    _surnameController.dispose();
     _bioController.dispose();
     _jobController.dispose();
-    _educationController.dispose();
+    _universityController.dispose();
     super.dispose();
   }
 
@@ -145,6 +153,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               validator: (v) => v == null || v.trim().isEmpty ? 'Введите имя' : null,
             ),
             const SizedBox(height: 16),
+            TextFormField(
+              controller: _surnameController,
+              decoration: _inputDecoration('Фамилия'),
+            ),
+            const SizedBox(height: 16),
             _sectionTitle('Дата рождения'),
             InkWell(
               onTap: () async {
@@ -178,13 +191,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             _sectionTitle('Цель знакомства'),
             _choiceRow(['Дружба', 'Общение', 'Отношения'], ['friendship', 'communication', 'relationship'], _relationshipGoal, (v) => setState(() => _relationshipGoal = v)),
             const SizedBox(height: 16),
-            TextFormField(controller: _cityController, decoration: _inputDecoration('Город')),
+            _sectionTitle('Город'),
+            InkWell(
+              onTap: () async {
+                final picked = await Navigator.push<String>(
+                  context,
+                  MaterialPageRoute(builder: (context) => CityPickerScreen(initialCity: _city.isEmpty ? null : _city)),
+                );
+                if (picked != null) setState(() => _city = picked);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))]),
+                child: Row(
+                  children: [
+                    Icon(Icons.location_city, color: Colors.grey.shade600),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(_city.isEmpty ? 'Выберите город' : _city, style: TextStyle(fontSize: 16, color: _city.isEmpty ? Colors.grey.shade600 : const Color(0xFF333333)))),
+                    const Icon(Icons.chevron_right, color: Colors.grey),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             TextFormField(controller: _bioController, decoration: _inputDecoration('О себе'), maxLines: 4),
             const SizedBox(height: 16),
             TextFormField(controller: _jobController, decoration: _inputDecoration('Работа')),
             const SizedBox(height: 16),
-            TextFormField(controller: _educationController, decoration: _inputDecoration('Образование')),
+            _sectionTitle('Образование'),
+            _educationLevelDropdown(),
+            const SizedBox(height: 16),
+            TextFormField(controller: _universityController, decoration: _inputDecoration('Название вуза')),
             const SizedBox(height: 24),
           ],
         ),
@@ -205,6 +242,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+    );
+  }
+
+  Widget _educationLevelDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))]),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _educationLevel.isEmpty ? null : _educationLevel,
+          isExpanded: true,
+          hint: const Text('Уровень образования'),
+          items: [
+            const DropdownMenuItem(value: '', child: Text('Не указано')),
+            ...kEducationLevels.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))),
+          ],
+          onChanged: (v) => setState(() => _educationLevel = v ?? ''),
+        ),
+      ),
     );
   }
 

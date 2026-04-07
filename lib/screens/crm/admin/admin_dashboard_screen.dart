@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../../config/app_launch_config.dart';
+import '../../../services/auth/auth_service.dart';
 import 'admin_moderation_screen.dart';
 import 'admin_users_screen.dart';
 import 'admin_events_venues_screen.dart';
@@ -14,14 +17,25 @@ class AdminDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF333333)),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF333333)),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
+        automaticallyImplyLeading: false,
         title: const Text(
           'Админ-панель',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
         ),
+        actions: [
+          if (AppLaunchConfig.crmWebOnly)
+            IconButton(
+              tooltip: 'Выйти',
+              icon: const Icon(Icons.logout, color: Color(0xFF333333)),
+              onPressed: () => AuthService().signOut(),
+            ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

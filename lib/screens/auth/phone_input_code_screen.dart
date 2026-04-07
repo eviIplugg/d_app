@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/auth/auth_service.dart';
-import '../../firebase/firestore_schema.dart';
 import 'auth_options_screen.dart';
-import '../profile_create/name_screen.dart';
-import '../welcome/returning_user_welcome_screen.dart';
+import '../../navigation/auth_after_signin.dart';
 
 class PhoneInputCodeScreen extends StatefulWidget {
   final String phoneNumber;
@@ -27,10 +25,12 @@ class _PhoneInputCodeScreenState extends State<PhoneInputCodeScreen> {
   int _resendSecondsLeft = _resendCooldownSeconds;
   final AuthService _authService = AuthService();
   bool _isVerifying = false;
+  late String _verificationId;
 
   @override
   void initState() {
     super.initState();
+    _verificationId = widget.verificationId;
     _startResendCooldown();
   }
 
@@ -83,7 +83,7 @@ class _PhoneInputCodeScreenState extends State<PhoneInputCodeScreen> {
 
     setState(() => _isVerifying = true);
     try {
-      await _authService.signInWithPhoneCode(widget.verificationId, code);
+      await _authService.signInWithPhoneCode(_verificationId, code);
       await _authService.saveOrUpdateUser(
         uid: _authService.currentUserId!,
         authProvider: 'phone',
@@ -92,20 +92,7 @@ class _PhoneInputCodeScreenState extends State<PhoneInputCodeScreen> {
       if (!mounted) return;
       final profile = await _authService.getUserProfile(_authService.currentUserId!);
       if (!mounted) return;
-      if (_authService.isProfileRegistered(profile)) {
-        final name = profile?[kUserName]?.toString() ?? 'Пользователь';
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ReturningUserWelcomeScreen(userName: name),
-          ),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const NameScreen()),
-        );
-      }
+      await AuthAfterSignIn.navigateFromProfile(context, _authService, profile);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -121,8 +108,9 @@ class _PhoneInputCodeScreenState extends State<PhoneInputCodeScreen> {
 
   void _resendCode() {
     if (_resendSecondsLeft > 0) return;
-    _authService.sendPhoneCode(widget.phoneNumber).then((_) {
+    _authService.sendPhoneCode(widget.phoneNumber).then((newId) {
       if (mounted) {
+        setState(() => _verificationId = newId);
         _startResendCooldown();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Код отправлен повторно')),

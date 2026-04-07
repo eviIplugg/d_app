@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'geolocation_permission_screen.dart';
 import '../../models/profile_draft.dart';
+import '../../utils/education_levels.dart';
+import '../city_picker_screen.dart';
 import 'profile_flow_steps.dart';
 
 class AboutMeScreen extends StatefulWidget {
@@ -15,16 +17,18 @@ class AboutMeScreen extends StatefulWidget {
 class _AboutMeScreenState extends State<AboutMeScreen> {
   late final TextEditingController _bioController;
   late String _city;
+  late String _educationLevel;
   late String _job;
-  late String _education;
+  late String _university;
 
   @override
   void initState() {
     super.initState();
     _bioController = TextEditingController(text: widget.draft.bio);
     _city = widget.draft.city;
+    _educationLevel = widget.draft.educationLevel;
     _job = widget.draft.job;
-    _education = widget.draft.education;
+    _university = widget.draft.university;
   }
 
   @override
@@ -37,7 +41,8 @@ class _AboutMeScreenState extends State<AboutMeScreen> {
     widget.draft.bio = _bioController.text.trim();
     widget.draft.city = _city.trim();
     widget.draft.job = _job.trim();
-    widget.draft.education = _education.trim();
+    widget.draft.educationLevel = _educationLevel;
+    widget.draft.university = _university.trim();
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => GeolocationPermissionScreen(draft: widget.draft)),
@@ -156,25 +161,43 @@ class _AboutMeScreenState extends State<AboutMeScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildInfoRow('Город', _city, () {
-                      _editField(
-                        title: 'Город',
-                        initialValue: _city,
-                        onSaved: (v) => setState(() => _city = v),
+                    _buildInfoRow('Город', _city, () async {
+                      final picked = await Navigator.push<String>(
+                        context,
+                        MaterialPageRoute(builder: (context) => CityPickerScreen(initialCity: _city.isEmpty ? null : _city)),
                       );
+                      if (picked != null) setState(() => _city = picked);
                     }),
-                    _buildInfoRow('Работа', _job, () {
+                    _buildInfoRow('Работа', _job.isEmpty ? 'Добавить' : _job, () {
                       _editField(
                         title: 'Работа',
                         initialValue: _job,
                         onSaved: (v) => setState(() => _job = v),
                       );
                     }),
-                    _buildInfoRow('Образование', _education, () {
+                    _buildInfoRow('Уровень образования', educationLevelLabel(_educationLevel) ?? 'Выберите', () async {
+                      final chosen = await showModalBottomSheet<String>(
+                        context: context,
+                        builder: (ctx) => SafeArea(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final e in kEducationLevels)
+                                ListTile(
+                                  title: Text(e.value),
+                                  onTap: () => Navigator.pop(ctx, e.key),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                      if (chosen != null) setState(() => _educationLevel = chosen);
+                    }),
+                    _buildInfoRow('Название вуза', _university.isEmpty ? 'Добавить' : _university, () {
                       _editField(
-                        title: 'Образование',
-                        initialValue: _education,
-                        onSaved: (v) => setState(() => _education = v),
+                        title: 'Название вуза',
+                        initialValue: _university,
+                        onSaved: (v) => setState(() => _university = v),
                       );
                     }),
                     const SizedBox(height: 16),

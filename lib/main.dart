@@ -1,10 +1,15 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'firebase_options.dart';
 import 'screens/splash/theme_aware_splash.dart';
+import 'services/auth/telegram_web_redirect.dart';
+import 'theme/app_theme.dart';
+import 'widgets/app_presence_scope.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await applyTelegramWebRedirectIfPresent();
   runApp(const DatingApp());
 }
 
@@ -16,18 +21,17 @@ class DatingApp extends StatelessWidget {
     return MaterialApp(
       title: 'Ring me.',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        primarySwatch: Colors.red,
-        fontFamily: 'Roboto',
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.grey,
-        fontFamily: 'Roboto',
-      ),
+      theme: AppTheme.lightTheme(),
+      darkTheme: AppTheme.darkTheme(),
       themeMode: ThemeMode.system,
+      scrollBehavior: _AppScrollBehavior(),
+      builder: (context, child) => AppPresenceScope(child: child),
       home: const ThemeAwareSplash(),
     );
   }
+}
+
+class _AppScrollBehavior extends ScrollBehavior {
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) => AppTheme.scrollPhysics;
 }

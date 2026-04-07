@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../../models/feed_post.dart';
 import '../../../services/auth/auth_service.dart';
 import '../../../services/post_service.dart';
+import '../../../widgets/story_ring_avatar.dart';
+import 'post_comments_sheet.dart';
 
 /// Карточка поста в стиле Instagram: аватар, имя, верификация, город, фото/карусель, лайк, тег, заголовок, дата/место/цена/рейтинг, подпись.
 class PostCard extends StatelessWidget {
@@ -11,10 +13,12 @@ class PostCard extends StatelessWidget {
     super.key,
     required this.post,
     this.onTapAuthor,
+    this.hasStory = false,
   });
 
   final FeedPost post;
   final VoidCallback? onTapAuthor;
+  final bool hasStory;
 
   static const Color _text = Color(0xFF333333);
 
@@ -32,13 +36,28 @@ class PostCard extends StatelessWidget {
             authorPhotoUrl: post.authorPhotoUrl,
             authorCity: post.authorCity,
             authorVerified: post.authorVerified,
+            hasStory: hasStory,
             onTap: onTapAuthor,
           ),
           _PhotoSection(
             photoUrls: post.displayPhotoUrls,
             isLiked: isLiked,
             likeCount: post.likeCount,
-            onLikeTap: () => PostService().toggleLike(post.id),
+            onLikeTap: () async => PostService().toggleLike(post.id),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 12, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => showPostCommentsSheet(context, post.id),
+                icon: const Icon(Icons.chat_bubble_outline, size: 20, color: Color(0xFF81262B)),
+                label: const Text(
+                  'Комментарии',
+                  style: TextStyle(color: Color(0xFF81262B), fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
@@ -102,6 +121,7 @@ class PostCard extends StatelessWidget {
                   authorPhotoUrl: post.authorPhotoUrl,
                   authorVerified: post.authorVerified,
                   authorCity: post.authorCity,
+                  hasStory: hasStory,
                   onTap: onTapAuthor,
                 ),
                 if (post.caption.isNotEmpty)
@@ -129,6 +149,7 @@ class _Header extends StatelessWidget {
     this.authorPhotoUrl,
     this.authorCity,
     this.authorVerified = false,
+    this.hasStory = false,
     this.onTap,
   });
 
@@ -136,6 +157,7 @@ class _Header extends StatelessWidget {
   final String? authorPhotoUrl;
   final String? authorCity;
   final bool authorVerified;
+  final bool hasStory;
   final VoidCallback? onTap;
 
   @override
@@ -146,10 +168,10 @@ class _Header extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
-            CircleAvatar(
+            StoryRingAvatar(
               radius: 20,
-              backgroundImage: authorPhotoUrl != null && authorPhotoUrl!.isNotEmpty ? NetworkImage(authorPhotoUrl!) : null,
-              child: authorPhotoUrl == null || authorPhotoUrl!.isEmpty ? const Icon(Icons.person, color: Colors.grey) : null,
+              photoUrl: authorPhotoUrl,
+              hasStory: hasStory,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -202,7 +224,7 @@ class _PhotoSection extends StatefulWidget {
   final List<String> photoUrls;
   final bool isLiked;
   final int likeCount;
-  final VoidCallback onLikeTap;
+  final Future<void> Function() onLikeTap;
 
   @override
   State<_PhotoSection> createState() => _PhotoSectionState();
@@ -210,6 +232,56 @@ class _PhotoSection extends StatefulWidget {
 
 class _PhotoSectionState extends State<_PhotoSection> {
   int _currentPage = 0;
+  late bool _isLikedLocal;
+  late int _likeCountLocal;
+  bool _likeBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isLikedLocal = widget.isLiked;
+    _likeCountLocal = widget.likeCount;
+  }
+
+  @override
+  void didUpdateWidget(covariant _PhotoSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isLiked != widget.isLiked) _isLikedLocal = widget.isLiked;
+    if (oldWidget.likeCount != widget.likeCount) _likeCountLocal = widget.likeCount;
+  }
+
+  Future<void> _handleLikeTap() async {
+    if (_likeBusy) return;
+    final prevLiked = _isLikedLocal;
+    final prevCount = _likeCountLocal;
+    setState(() {
+      _likeBusy = true;
+      _isLikedLocal = !prevLiked;
+      _likeCountLocal = prevLiked
+          ? (_likeCountLocal > 0 ? _likeCountLocal - 1 : 0)
+          : _likeCountLocal + 1;
+    });
+    try {
+      await widget.onLikeTap();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLikedLocal = prevLiked;
+        _likeCountLocal = prevCount;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          content: Text('Не удалось поставить лайк: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _likeBusy = false);
+      }
+    }
+  }
 
   Widget _postImage(String url) {
     if (url.startsWith('data:')) {
@@ -220,7 +292,7 @@ class _PhotoSectionState extends State<_PhotoSection> {
           bytes,
           fit: BoxFit.cover,
           width: double.infinity,
-          errorBuilder: (_, __, _) => const Center(child: Icon(Icons.broken_image, size: 48)),
+          errorBuilder: (_, error, stackTrace) => const Center(child: Icon(Icons.broken_image, size: 48)),
         );
       } catch (_) {
         return const Center(child: Icon(Icons.broken_image, size: 48));
@@ -230,7 +302,33 @@ class _PhotoSectionState extends State<_PhotoSection> {
       url,
       fit: BoxFit.cover,
       width: double.infinity,
-      errorBuilder: (_, __, _) => const Center(child: Icon(Icons.broken_image, size: 48)),
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.low,
+      cacheWidth: 720,
+      cacheHeight: 720,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return ColoredBox(
+          color: Colors.grey.shade200,
+          child: SizedBox(
+            height: 300,
+            child: Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.grey.shade500,
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                      : null,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (_, error, stackTrace) => const Center(child: Icon(Icons.broken_image, size: 48)),
     );
   }
 
@@ -250,7 +348,7 @@ class _PhotoSectionState extends State<_PhotoSection> {
           PageView.builder(
             itemCount: widget.photoUrls.length,
             onPageChanged: (i) => setState(() => _currentPage = i),
-            itemBuilder: (ctx, i) => _postImage(widget.photoUrls[i]),
+            itemBuilder: (ctx, i) => RepaintBoundary(child: _postImage(widget.photoUrls[i])),
           ),
           if (widget.photoUrls.length > 1)
             Positioned(
@@ -274,17 +372,18 @@ class _PhotoSectionState extends State<_PhotoSection> {
             child: Row(
               children: [
                 GestureDetector(
-                  onTap: widget.onLikeTap,
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _handleLikeTap,
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(20)),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(widget.isLiked ? Icons.favorite : Icons.favorite_border, color: widget.isLiked ? Colors.red : Colors.white, size: 22),
-                        if (widget.likeCount > 0) ...[
+                        Icon(_isLikedLocal ? Icons.favorite : Icons.favorite_border, color: _isLikedLocal ? Colors.red : Colors.white, size: 22),
+                        if (_likeCountLocal > 0) ...[
                           const SizedBox(width: 4),
-                          Text('${widget.likeCount}', style: const TextStyle(color: Colors.white, fontSize: 13)),
+                          Text('$_likeCountLocal', style: const TextStyle(color: Colors.white, fontSize: 13)),
                         ],
                       ],
                     ),
@@ -305,6 +404,7 @@ class _AuthorLine extends StatelessWidget {
     this.authorPhotoUrl,
     this.authorVerified = false,
     this.authorCity,
+    this.hasStory = false,
     this.onTap,
   });
 
@@ -312,6 +412,7 @@ class _AuthorLine extends StatelessWidget {
   final String? authorPhotoUrl;
   final bool authorVerified;
   final String? authorCity;
+  final bool hasStory;
   final VoidCallback? onTap;
 
   @override
@@ -320,10 +421,10 @@ class _AuthorLine extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          CircleAvatar(
+          StoryRingAvatar(
             radius: 12,
-            backgroundImage: authorPhotoUrl != null && authorPhotoUrl!.isNotEmpty ? NetworkImage(authorPhotoUrl!) : null,
-            child: authorPhotoUrl == null || authorPhotoUrl!.isEmpty ? const Icon(Icons.person, size: 14, color: Colors.grey) : null,
+            photoUrl: authorPhotoUrl,
+            hasStory: hasStory,
           ),
           const SizedBox(width: 6),
           Text(

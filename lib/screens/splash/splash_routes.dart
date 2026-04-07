@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../services/auth/auth_service.dart';
 import '../../firebase/firestore_schema.dart';
+import '../../services/blacklist_service.dart';
 import '../welcome/welcome_screen.dart';
-import '../welcome/returning_user_welcome_screen.dart';
-import '../feed/main_app_shell.dart';
+import '../../navigation/post_auth_home.dart';
 
-/// После сплеша: если пользователь уже зарегистрирован (профиль в Firestore с именем и полом/фото) — экран «Добро пожаловать» затем лента.
-/// Иначе показываем Welcome → регистрация (Terms, Auth) → заполнение профиля.
+/// После сплеша: если пользователь уже зарегистрирован — сразу лента (без «Добро пожаловать»).
+/// Экран «Добро пожаловать, Имя» показывается только после повторной авторизации (экраны входа).
+/// Иначе — Welcome → регистрация → заполнение профиля.
 Future<void> navigateAfterSplash(BuildContext context) async {
   if (!context.mounted) return;
   final auth = AuthService();
@@ -19,16 +20,39 @@ Future<void> navigateAfterSplash(BuildContext context) async {
     return;
   }
   try {
-    final profile = await auth.getUserProfile(user.uid);
+    // Blacklist: запрет повторной регистрации после жёсткого удаления
+    final isBl = await BlacklistService().isPhoneBlacklisted(user.phoneNumber);
     if (!context.mounted) return;
-    final isRegistered = auth.isProfileRegistered(profile);
-    if (isRegistered) {
-      final name = profile![kUserName]?.toString() ?? 'Пользователь';
+    if (isBl) {
+      await auth.signOut();
+      if (!context.mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => ReturningUserWelcomeScreen(userName: name),
-        ),
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+      );
+      return;
+    }
+
+    final profile = await auth.getUserProfile(user.uid);
+    if (!context.mounted) return;
+
+    // Telegram/VK: phoneNumber может отсутствовать. Проверяем blacklist по telegramUserId из профиля.
+    final tg = profile?[kUserTelegramUserId]?.toString();
+    if (await BlacklistService().isTelegramBlacklisted(tg)) {
+      await auth.signOut();
+      if (!context.mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+      );
+      return;
+    }
+
+    final isRegistered = auth.isProfileRegistered(profile);
+    if (isRegistered) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<void>(builder: (context) => PostAuthHome.shell),
       );
     } else {
       final hasName = profile != null &&
@@ -38,7 +62,7 @@ Future<void> navigateAfterSplash(BuildContext context) async {
       if (hasName) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const MainAppShell()),
+          MaterialPageRoute<void>(builder: (context) => PostAuthHome.shell),
         );
       } else {
         Navigator.pushReplacement(

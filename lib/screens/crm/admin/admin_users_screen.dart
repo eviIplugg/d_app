@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../firebase/firestore_schema.dart';
 import '../../../services/admin_crm_service.dart';
-import 'admin_user_edit_screen.dart';
+import 'admin_user_detail_screen.dart';
 
 /// Управление пользователями: список, верификация, роли, блокировка.
 class AdminUsersScreen extends StatefulWidget {
@@ -17,6 +17,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _users = [];
   DocumentSnapshot? _lastDoc;
   bool _loading = false;
+  bool _selectMode = false;
+  final Set<String> _selectedIds = {};
 
   @override
   void initState() {
@@ -36,6 +38,48 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     });
   }
 
+  void _toggleSelectMode() {
+    setState(() {
+      _selectMode = !_selectMode;
+      if (!_selectMode) _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelected(String uid) {
+    setState(() {
+      if (_selectedIds.contains(uid)) _selectedIds.remove(uid);
+      else _selectedIds.add(uid);
+    });
+  }
+
+  void _selectAllLoaded() {
+    setState(() {
+      for (final d in _users) {
+        _selectedIds.add(d.id);
+      }
+    });
+  }
+
+  Future<void> _bulkUpdateUsers(Map<String, dynamic> updates) async {
+    final ids = _selectedIds.toList();
+    if (ids.isEmpty) return;
+    try {
+      await _crm.updateUsersByAdminBulk(ids, updates);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Готово'), backgroundColor: Colors.green));
+      setState(() {
+        _selectMode = false;
+        _selectedIds.clear();
+        _users = [];
+        _lastDoc = null;
+      });
+      await _loadMore();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -47,7 +91,42 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF333333)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Пользователи', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+        title: Text(
+          _selectMode ? 'Выбрано: ${_selectedIds.length}' : 'Пользователи',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
+        ),
+        actions: [
+          IconButton(
+            tooltip: _selectMode ? 'Отменить выбор' : 'Выбрать несколько',
+            icon: Icon(_selectMode ? Icons.close : Icons.checklist, color: const Color(0xFF333333)),
+            onPressed: _toggleSelectMode,
+          ),
+          if (_selectMode)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Color(0xFF333333)),
+              onSelected: (v) async {
+                if (v == 'select_all') {
+                  _selectAllLoaded();
+                  return;
+                }
+                if (v == 'ban') return _bulkUpdateUsers({kUserIsBanned: true});
+                if (v == 'unban') return _bulkUpdateUsers({kUserIsBanned: false});
+                if (v == 'verify') return _bulkUpdateUsers({kUserVerificationStatus: 'verified'});
+                if (v == 'pending') return _bulkUpdateUsers({kUserVerificationStatus: 'pending'});
+                if (v == 'none') return _bulkUpdateUsers({kUserVerificationStatus: 'none'});
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'select_all', child: Text('Выбрать все (загруженные)')),
+                PopupMenuDivider(),
+                PopupMenuItem(value: 'ban', child: Text('Забанить')),
+                PopupMenuItem(value: 'unban', child: Text('Разбанить')),
+                PopupMenuDivider(),
+                PopupMenuItem(value: 'verify', child: Text('Верифицировать')),
+                PopupMenuItem(value: 'pending', child: Text('В модерацию')),
+                PopupMenuItem(value: 'none', child: Text('Сбросить верификацию')),
+              ],
+            ),
+        ],
       ),
       body: _users.isEmpty && !_loading
           ? const Center(child: Text('Нет пользователей'))
@@ -73,6 +152,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 final banned = d[kUserIsBanned] == true;
                 final photos = d[kUserPhotos];
                 final photoUrl = photos is List && photos.isNotEmpty ? photos.first?.toString() : null;
+                final selected = _selectedIds.contains(doc.id);
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
@@ -81,10 +161,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 6, offset: const Offset(0, 2))],
                   ),
                   child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundImage: photoUrl != null && photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-                      child: photoUrl == null || photoUrl.isEmpty ? const Icon(Icons.person) : null,
-                    ),
+                    leading: _selectMode
+                        ? Checkbox(
+                            value: selected,
+                            onChanged: (_) => _toggleSelected(doc.id),
+                          )
+                        : CircleAvatar(
+                            backgroundImage: photoUrl != null && photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                            child: photoUrl == null || photoUrl.isEmpty ? const Icon(Icons.person) : null,
+                          ),
                     title: Row(
                       children: [
                         Expanded(child: Text(name)),
@@ -93,15 +178,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       ],
                     ),
                     subtitle: Text('${city ?? ''} · $role'),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: _selectMode ? null : const Icon(Icons.chevron_right),
                     onTap: () async {
+                      if (_selectMode) {
+                        _toggleSelected(doc.id);
+                        return;
+                      }
                       await Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => AdminUserEditScreen(userId: doc.id, userData: d),
-                        ),
+                        MaterialPageRoute(builder: (_) => AdminUserDetailScreen(userId: doc.id)),
                       );
-                      _loadMore();
                     },
                   ),
                 );

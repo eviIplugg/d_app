@@ -15,24 +15,48 @@ class FeedService {
   /// Текущие фильтры (устанавливаются с экрана фильтров в Поиске).
   Map<String, dynamic> currentFilter = {};
 
-  /// Загрузить кандидатов по фильтрам (пол, возраст, верификация). Сортировка: сначала тот же город, остальные — по индексу.
+  List<FeedUser>? _cachedCandidates;
+  String? _cacheKey;
+  static const Duration _cacheTtl = Duration(minutes: 2);
+  DateTime? _cacheTime;
+
+  /// Загрузить кандидатов по фильтрам (пол, возраст, верификация). Результат кешируется на 2 минуты.
   /// При таймауте (deadline-exceeded) делает одну повторную попытку.
-  Future<List<FeedUser>> getCandidates({int limit = 50}) async {
+  Future<List<FeedUser>> getCandidates({int limit = 50, bool forceRefresh = false}) async {
     final uid = _auth.currentUserId;
     if (uid == null) return [];
+    final key = '$uid-${currentFilter.hashCode}-$limit';
+    if (!forceRefresh && _cacheKey == key && _cacheTime != null && DateTime.now().difference(_cacheTime!) < _cacheTtl && _cachedCandidates != null) {
+      return _cachedCandidates!;
+    }
     try {
-      return await _getCandidatesOnce(limit: limit);
+      final list = await _getCandidatesOnce(limit: limit);
+      _cachedCandidates = list;
+      _cacheKey = key;
+      _cacheTime = DateTime.now();
+      return list;
     } on FirebaseException catch (e) {
       if (_isRetryable(e.code)) {
         await Future.delayed(const Duration(milliseconds: 800));
         try {
-          return await _getCandidatesOnce(limit: limit);
+          final list = await _getCandidatesOnce(limit: limit);
+          _cachedCandidates = list;
+          _cacheKey = key;
+          _cacheTime = DateTime.now();
+          return list;
         } catch (_) {
           return [];
         }
       }
       rethrow;
     }
+  }
+
+  /// Сбросить кеш ленты (например после свайпа или смены фильтров).
+  void invalidateCandidatesCache() {
+    _cachedCandidates = null;
+    _cacheKey = null;
+    _cacheTime = null;
   }
 
   static bool _isRetryable(String? code) {
@@ -76,16 +100,15 @@ class FeedService {
       list.add(user);
     }
 
+    // Показываем только анкеты из того же города, если город указан
+    List<FeedUser> result = list;
     if (myCity != null && myCity.isNotEmpty) {
-      list.sort((a, b) {
-        final aSame = a.city != null && a.city!.toLowerCase() == myCity.toLowerCase();
-        final bSame = b.city != null && b.city!.toLowerCase() == myCity.toLowerCase();
-        if (aSame && !bSame) return -1;
-        if (!aSame && bSame) return 1;
-        return 0;
-      });
+      result = list.where((u) => u.city != null && u.city!.trim().toLowerCase() == myCity.trim().toLowerCase()).toList();
+      result = result.take(limit).toList();
+    } else {
+      result = list.take(limit).toList();
     }
-    return list.take(limit).toList();
+    return result;
   }
 
   Future<Set<String>> _getSwipedTargetIds(String userId) async {
@@ -111,6 +134,7 @@ class FeedService {
       kSwipeDirection: isLike ? 'like' : 'pass',
       kSwipeCreatedAt: FieldValue.serverTimestamp(),
     });
+    invalidateCandidatesCache();
 
     if (!isLike) return null;
     return await _checkAndCreateMatch(uid, targetUserId);

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../feed/main_app_shell.dart';
+import '../../navigation/post_auth_home.dart';
 
 /// Экран «Добро пожаловать» для вернувшегося пользователя (после проверки, что он уже зарегистрирован).
 class ReturningUserWelcomeScreen extends StatelessWidget {
@@ -16,7 +16,6 @@ class ReturningUserWelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayName = userName.trim().isEmpty ? 'Пользователь' : userName.trim();
-
     return Scaffold(
       backgroundColor: const Color(0xFFF3F3F3),
       body: SafeArea(
@@ -55,14 +54,7 @@ class ReturningUserWelcomeScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const MainAppShell(),
-                      ),
-                    );
-                  },
+                  onPressed: () => PostAuthHome.replaceWithShell(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _accent,
                     foregroundColor: Colors.white,

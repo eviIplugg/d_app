@@ -48,6 +48,40 @@ class AdminCrmService {
     });
   }
 
+  Future<void> setPostsModerationStatusBulk(List<String> postIds, String status) async {
+    final uid = _uid;
+    if (uid == null) return;
+    if (postIds.isEmpty) return;
+    const chunkSize = 450; // запас относительно лимита 500
+    for (var i = 0; i < postIds.length; i += chunkSize) {
+      final chunk = postIds.sublist(i, (i + chunkSize).clamp(0, postIds.length));
+      final batch = _firestore.batch();
+      for (final id in chunk) {
+        final ref = _firestore.collection(kPostsCollection).doc(id);
+        batch.update(ref, {
+          kPostModerationStatus: status,
+          kPostReviewedAt: FieldValue.serverTimestamp(),
+          kPostReviewedBy: uid,
+        });
+      }
+      await batch.commit();
+    }
+  }
+
+  Future<void> deletePostsBulk(List<String> postIds) async {
+    if (postIds.isEmpty) return;
+    const chunkSize = 450;
+    for (var i = 0; i < postIds.length; i += chunkSize) {
+      final chunk = postIds.sublist(i, (i + chunkSize).clamp(0, postIds.length));
+      final batch = _firestore.batch();
+      for (final id in chunk) {
+        final ref = _firestore.collection(kPostsCollection).doc(id);
+        batch.delete(ref);
+      }
+      await batch.commit();
+    }
+  }
+
   /// Список пользователей (пагинация).
   Future<QuerySnapshot<Map<String, dynamic>>> getUsers({DocumentSnapshot? startAfter, int limit = 30}) async {
     var q = _firestore.collection(kUsersCollection).orderBy(kUserCreatedAt, descending: true).limit(limit);
@@ -65,6 +99,24 @@ class AdminCrmService {
       kUserUpdatedAt: FieldValue.serverTimestamp(),
     };
     await ref.set(data, SetOptions(merge: true));
+  }
+
+  Future<void> updateUsersByAdminBulk(List<String> userIds, Map<String, dynamic> updates) async {
+    if (userIds.isEmpty) return;
+    final data = <String, dynamic>{
+      ...updates,
+      kUserUpdatedAt: FieldValue.serverTimestamp(),
+    };
+    const chunkSize = 450;
+    for (var i = 0; i < userIds.length; i += chunkSize) {
+      final chunk = userIds.sublist(i, (i + chunkSize).clamp(0, userIds.length));
+      final batch = _firestore.batch();
+      for (final id in chunk) {
+        final ref = _firestore.collection(kUsersCollection).doc(id);
+        batch.set(ref, data, SetOptions(merge: true));
+      }
+      await batch.commit();
+    }
   }
 
   /// Все мероприятия (для админа).

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/feed_user.dart';
@@ -7,6 +5,7 @@ import '../../services/auth/auth_service.dart';
 import '../../services/feed_service.dart';
 import '../feed/chat_conversation_screen.dart';
 import 'widgets/feed_card.dart';
+import 'widgets/swipeable_feed_card.dart';
 import 'feed_full_profile_sheet.dart';
 import 'feed_match_dialog.dart';
 import 'feed_filters_screen.dart';
@@ -24,8 +23,6 @@ class FeedContentState extends State<FeedContent> {
   List<FeedUser> _candidates = [];
   bool _loading = true;
   String? _error;
-  double _dragOffset = 0;
-  static const double _swipeThreshold = 100;
 
   @override
   void initState() {
@@ -70,7 +67,6 @@ class FeedContentState extends State<FeedContent> {
     if (_candidates.isEmpty) return;
     setState(() {
       _candidates = _candidates.where((c) => c.uid != user.uid).toList();
-      _dragOffset = 0;
     });
     final matchId = await _feedService.recordSwipe(targetUserId: user.uid, isLike: isLike);
     if (!mounted) return;
@@ -203,10 +199,12 @@ class FeedContentState extends State<FeedContent> {
           Positioned.fill(
             child: Padding(
               padding: EdgeInsets.only(left: 12 + i * 8.0, right: 12 + i * 8.0, top: 12 + i * 8.0, bottom: 100 + i * 8.0),
-              child: FeedCard(
-                user: _candidates[i],
-                onTapArrow: () => _openFullProfile(_candidates[i]),
-                onTapPhoto: () => _openFullProfile(_candidates[i]),
+              child: RepaintBoundary(
+                child: FeedCard(
+                  user: _candidates[i],
+                  onTapArrow: () => _openFullProfile(_candidates[i]),
+                  onTapPhoto: () => _openFullProfile(_candidates[i]),
+                ),
               ),
             ),
           ),
@@ -214,66 +212,13 @@ class FeedContentState extends State<FeedContent> {
         Positioned.fill(
           child: Padding(
             padding: const EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 100),
-            child: LayoutBuilder(
-              builder: (ctx, c) {
-                final user = _candidates.first;
-                return GestureDetector(
-                  onHorizontalDragUpdate: (d) => setState(() => _dragOffset += d.delta.dx),
-                  onHorizontalDragEnd: (d) {
-                    if (_dragOffset.abs() > _swipeThreshold) {
-                      _onSwipe(user, _dragOffset > 0);
-                    } else {
-                      setState(() => _dragOffset = 0);
-                    }
-                  },
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Transform.translate(
-                        offset: Offset(_dragOffset, 0),
-                        child: Transform.rotate(
-                          angle: _dragOffset * 0.0003,
-                          child: FeedCard(
-                            user: user,
-                            onTapArrow: () => _openFullProfile(user),
-                            onTapPhoto: () => _openFullProfile(user),
-                          ),
-                        ),
-                      ),
-                      if (_dragOffset < -20)
-                        Positioned(
-                          left: 24,
-                          child: Opacity(
-                            opacity: math.min(1.0, -_dragOffset / _swipeThreshold),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: const Color(0xFFE53935), width: 4),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.close, size: 64, color: Color(0xFFE53935)),
-                            ),
-                          ),
-                        ),
-                      if (_dragOffset > 20)
-                        Positioned(
-                          right: 24,
-                          child: Opacity(
-                            opacity: math.min(1.0, _dragOffset / _swipeThreshold),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: const Color(0xFFE91E63), width: 4),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.favorite, size: 64, color: Color(0xFFE91E63)),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              },
+            child: RepaintBoundary(
+              child: SwipeableFeedCard(
+                key: ValueKey<String>(_candidates.first.uid),
+                user: _candidates.first,
+                onSwipe: (like) => _onSwipe(_candidates.first, like),
+                onOpenProfile: () => _openFullProfile(_candidates.first),
+              ),
             ),
           ),
         ),

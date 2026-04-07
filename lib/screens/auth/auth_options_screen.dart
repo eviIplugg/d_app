@@ -1,11 +1,13 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/telegram_config.dart';
 import '../../firebase/firestore_schema.dart';
 import '../../services/auth/auth_service.dart';
+import '../../services/blacklist_service.dart';
+import '../../navigation/auth_after_signin.dart';
 import 'phone_input_screen.dart';
 import 'telegram_login_webview_screen.dart';
-import '../profile_create/name_screen.dart';
-import '../welcome/returning_user_welcome_screen.dart';
 
 class AuthOptionsScreen extends StatefulWidget {
   const AuthOptionsScreen({super.key});
@@ -18,7 +20,6 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
   @override
   void initState() {
     super.initState();
-    AuthService().ensureVKInitialized();
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkAlreadyLoggedIn());
   }
 
@@ -28,15 +29,67 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
     if (uid == null) return;
     final profile = await auth.getUserProfile(uid);
     if (!mounted) return;
-    final hasName = profile != null &&
-        profile[kUserName] != null &&
-        (profile[kUserName] is String) &&
-        (profile[kUserName] as String).trim().isNotEmpty;
-    if (!hasName) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const NameScreen()),
-      );
+    if (await BlacklistService().isPhoneBlacklisted(auth.currentUser?.phoneNumber) ||
+        await BlacklistService().isTelegramBlacklisted(profile?[kUserTelegramUserId]?.toString())) {
+      await auth.signOut();
+      if (!mounted) return;
+      return;
     }
+    if (!mounted) return;
+    await AuthAfterSignIn.navigateFromProfile(context, auth, profile);
+  }
+
+  Future<void> _openTelegram(BuildContext context) async {
+    if (!isTelegramConfigured) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Настройте telegramBotUsername и telegramBotDomain в lib/config/telegram_config.dart'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Открываем Telegram авторизацию...'), backgroundColor: Colors.blueGrey),
+      );
+
+      final url = telegramBotDomain.trim();
+      final uri = url.startsWith('http://') || url.startsWith('https://')
+          ? Uri.parse(url)
+          : Uri.parse('https://$url');
+
+      try {
+        launchUrl(uri, mode: LaunchMode.externalApplication).then((ok) {
+          if (!context.mounted) return;
+          if (!ok) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Не удалось открыть Telegram. Возможно блокируется всплывающее окно.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }).catchError((_) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ошибка открытия Telegram.'), backgroundColor: Colors.red),
+          );
+        });
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка открытия Telegram: $e'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const TelegramLoginWebViewScreen(),
+      ),
+    );
   }
 
   @override
@@ -70,56 +123,30 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
                         color: Color(0xFF333333),
                       ),
                     ),
-                    const SizedBox(height: 48),
-                    _AuthButton(
-                      text: 'Номер телефона',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const PhoneInputScreen(),
-                          ),
-                        );
-                      },
+                    const SizedBox(height: 12),
+                    Text(
+                      'Войдите через Telegram — дальше заполните профиль в приложении.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.35),
                     ),
-                    const SizedBox(height: 16),
-                    _IconOnlyButton(
-                      icon: _VKLogo(),
-                      onPressed: () => _signInWithVK(context),
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 40),
                     _AuthButton(
-                      text: 'Telegram',
-                      onPressed: () {
-                        if (!isTelegramConfigured) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Настройте telegramBotUsername и telegramBotDomain в lib/config/telegram_config.dart'),
-                              backgroundColor: Colors.orange,
-                            ),
-                          );
-                          return;
-                        }
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const TelegramLoginWebViewScreen(),
-                          ),
-                        );
-                      },
+                      text: 'Войти через Telegram',
+                      onPressed: () => _openTelegram(context),
                       accentColor: const Color(0xFF0088CC),
                     ),
-                    const SizedBox(height: 16),
-                    _AuthButton(
-                      text: 'Войти',
+                    const SizedBox(height: 20),
+                    TextButton(
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const PhoneInputScreen(),
-                          ),
+                          MaterialPageRoute<void>(builder: (_) => const PhoneInputScreen()),
                         );
                       },
+                      child: Text(
+                        'Войти по номеру телефона',
+                        style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
+                      ),
                     ),
                   ],
                 ),
@@ -129,43 +156,6 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _signInWithVK(BuildContext context) async {
-    final auth = AuthService();
-    try {
-      final cred = await auth.signInWithVK();
-      if (cred == null || !context.mounted) return;
-      await auth.saveOrUpdateUser(
-        uid: auth.currentUserId!,
-        authProvider: 'vk',
-      );
-      if (!context.mounted) return;
-      final profile = await auth.getUserProfile(auth.currentUserId!);
-      if (!context.mounted) return;
-      if (auth.isProfileRegistered(profile)) {
-        final name = profile?[kUserName]?.toString() ?? 'Пользователь';
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ReturningUserWelcomeScreen(userName: name),
-          ),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const NameScreen()),
-        );
-      }
-    } catch (e) {
-      if (!context.mounted) return;
-      final String msg = e.toString().contains('initSdk') || e.toString().contains('_initialized') || e.toString().contains('VK ID')
-          ? 'Вход через VK ID временно недоступен. Проверьте VKID_CLIENT_ID и VKID_CLIENT_SECRET в android/gradle.properties.'
-          : 'Ошибка входа VK ID: ${e.toString().split('\n').first}';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: Colors.red),
-      );
-    }
   }
 }
 
@@ -221,64 +211,3 @@ class _AuthButton extends StatelessWidget {
     );
   }
 }
-
-class _IconOnlyButton extends StatelessWidget {
-  final Widget icon;
-  final VoidCallback onPressed;
-
-  const _IconOnlyButton({required this.icon, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Center(child: icon),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _VKLogo extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    const double originalWidth = 115;
-    const double originalHeight = 20;
-    const double uiHeight = 20;
-    final double uiWidth = (originalWidth / originalHeight) * uiHeight;
-    return Image.asset(
-      'assets/images/registration_icons/vk.png',
-      width: uiWidth,
-      height: uiHeight,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        return SizedBox(
-          width: uiWidth,
-          height: uiHeight,
-          child: const Center(
-            child: Text('VK', style: TextStyle(fontSize: 10, color: Colors.grey)),
-          ),
-        );
-      },
-    );
-  }
-}
-

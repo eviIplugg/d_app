@@ -14,20 +14,22 @@ class NameScreen extends StatefulWidget {
 
 class _NameScreenState extends State<NameScreen> {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _surnameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
     super.initState();
     final name = widget.draft?.name ?? '';
-    if (name.isNotEmpty) {
-      _nameController.text = name;
-    }
+    final surname = widget.draft?.surname ?? '';
+    if (name.isNotEmpty) _nameController.text = name;
+    if (surname.isNotEmpty) _surnameController.text = surname;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _surnameController.dispose();
     super.dispose();
   }
 
@@ -35,11 +37,26 @@ class _NameScreenState extends State<NameScreen> {
     if (_formKey.currentState!.validate()) {
       final draft = widget.draft ?? ProfileDraft();
       draft.name = _nameController.text.trim();
+      draft.surname = _surnameController.text.trim();
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => BirthdateScreen(draft: draft)),
       );
     }
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      filled: true,
+      fillColor: Colors.white,
+      labelText: label,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE0E0E0), width: 1)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE0E0E0), width: 1)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF81262B), width: 1)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red, width: 1)),
+      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red, width: 1)),
+    );
   }
 
   String? _validateName(String? value) {
@@ -84,56 +101,18 @@ class _NameScreenState extends State<NameScreen> {
                       // Name input field
                       TextFormField(
                         controller: _nameController,
-                        textInputAction: TextInputAction.done,
+                        textInputAction: TextInputAction.next,
                         validator: _validateName,
                         autofocus: true,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE0E0E0),
-                              width: 1,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE0E0E0),
-                              width: 1,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF81262B),
-                              width: 1,
-                            ),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Colors.red,
-                              width: 1,
-                            ),
-                          ),
-                          focusedErrorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Colors.red,
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Color(0xFF333333),
-                        ),
+                        decoration: _inputDecoration('Имя'),
+                        style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _surnameController,
+                        textInputAction: TextInputAction.done,
+                        decoration: _inputDecoration('Фамилия (необязательно)'),
+                        style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
                       ),
                     ],
                   ),

@@ -17,6 +17,8 @@ class FeedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final photoUrl = user.photoUrls.isNotEmpty ? user.photoUrls.first : null;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final decodeW = (MediaQuery.sizeOf(context).width * dpr).round().clamp(400, 720);
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -46,6 +48,10 @@ class FeedCard extends StatelessWidget {
                         ? Image.network(
                             photoUrl,
                             fit: BoxFit.cover,
+                            filterQuality: FilterQuality.low,
+                            gaplessPlayback: true,
+                            cacheWidth: decodeW,
+                            cacheHeight: (decodeW * 1.35).round(),
                             errorBuilder: (_, __, _) => _placeholder(),
                           )
                         : _placeholder(),

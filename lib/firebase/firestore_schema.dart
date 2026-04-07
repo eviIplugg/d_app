@@ -12,10 +12,12 @@ const String kActivitiesCollection = 'activities';
 const String kVerificationCollection = 'verification';
 const String kFeedCollection = 'feed'; // опционально: кэш ленты по пользователю
 const String kPostsCollection = 'posts';
+const String kStoriesCollection = 'stories';
 const String kEventsCollection = 'events';
 const String kVenuesCollection = 'venues';
 const String kEventSubscriptionsCollection = 'eventSubscriptions';
 const String kEventParticipantsCollection = 'eventParticipants';
+const String kBlacklistCollection = 'blacklist';
 
 // Субколлекции
 const String kMessagesSubcollection = 'messages';
@@ -26,14 +28,17 @@ const String kVerificationSubcollection = 'verification'; // или отдель
 // documentId = uid (Firebase Auth UID)
 
 const String kUserName = 'name';
+const String kUserSurname = 'surname'; // Фамилия
 const String kUserBirthdate = 'birthdate'; // Timestamp
 const String kUserGender = 'gender'; // 'male' | 'female' | 'other'
 const String kUserPreference = 'preference'; // 'men' | 'women' | 'everyone'
 const String kUserPhotos = 'photos'; // List<String> URLs
 const String kUserBio = 'bio';
-const String kUserCity = 'city';
+const String kUserCity = 'city'; // Название города (например из списка РФ)
 const String kUserJob = 'job';
-const String kUserEducation = 'education';
+const String kUserEducation = 'education'; // Уровень образования (ключ)
+const String kUserEducationLevel = 'educationLevel'; // среднее неполное | среднее полное | ...
+const String kUserUniversity = 'university'; // Название вуза
 const String kUserVerificationStatus = 'verificationStatus'; // 'none' | 'pending' | 'verified'
 const String kUserPhoneNumber = 'phoneNumber'; // E.164 для входа по телефону
 const String kUserAuthProvider = 'authProvider'; // 'phone' | 'google' | 'vk' | 'yandex'
@@ -49,6 +54,16 @@ const String kUserRelationshipGoal = 'relationshipGoal'; // 'friendship' | 'comm
 const String kUserRole = 'role';
 /// Заблокирован ли пользователь (админ).
 const String kUserIsBanned = 'isBanned';
+const String kUserDeletedAt = 'deletedAt'; // Timestamp
+const String kUserDeletedBy = 'deletedBy'; // uid
+const String kUserIsDeleted = 'isDeleted'; // bool
+
+// ============== BLACKLIST (запрет повторной регистрации) ==============
+const String kBlacklistType = 'type'; // 'phone' | 'telegram'
+const String kBlacklistValueHash = 'valueHash';
+const String kBlacklistCreatedAt = 'createdAt';
+const String kBlacklistCreatedBy = 'createdBy';
+const String kBlacklistReason = 'reason';
 
 /// Настройки (вложенный объект в документе users): приватность, уведомления и т.д.
 const String kUserSettings = 'settings';
@@ -147,6 +162,21 @@ const String kPostActivityTag = 'activityTag';
 const String kPostModerationStatus = 'moderationStatus';
 const String kPostReviewedAt = 'reviewedAt'; // Timestamp
 const String kPostReviewedBy = 'reviewedBy'; // uid модератора
+
+/// Подколлекция: posts/{postId}/comments/{commentId}
+const String kPostCommentsSubcollection = 'comments';
+const String kCommentAuthorId = 'authorId';
+const String kCommentText = 'text';
+const String kCommentCreatedAt = 'createdAt'; // Timestamp
+
+// ============== STORIES (истории 24ч) ==============
+const String kStoryAuthorId = 'authorId';
+const String kStoryImageUrl = 'imageUrl';
+const String kStoryStoragePath = 'storagePath';
+const String kStoryCaption = 'caption';
+const String kStoryCreatedAt = 'createdAt'; // Timestamp
+const String kStoryExpiresAt = 'expiresAt'; // Timestamp
+const String kStoryVisibleTo = 'visibleTo'; // List<String> uid получателей (matched users + author)
 
 // ============== EVENTS (мероприятия в ленте) ==============
 const String kEventTitle = 'title';

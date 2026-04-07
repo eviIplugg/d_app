@@ -42,16 +42,21 @@
     </div>
     <script>
         window.onTelegramAuth = function(user) {
-            var q = 'id=' + encodeURIComponent(user.id || '') +
-                '&first_name=' + encodeURIComponent(user.first_name || '') +
-                '&last_name=' + encodeURIComponent(user.last_name || '') +
-                '&username=' + encodeURIComponent(user.username || '');
+            var parts = [];
+            for (var k in user) {
+                if (Object.prototype.hasOwnProperty.call(user, k)) {
+                    parts.push(k + '=' + encodeURIComponent(String(user[k])));
+                }
+            }
+            var q = parts.join('&');
             document.getElementById('status').textContent = 'Перенаправление в приложение…';
-            var deepLink = 'ringme://telegram?' + q;
+            // Редирект в приложение с параметрами Telegram в URL,
+            // чтобы Flutter обработал Telegram-логин.
+            var targetUrl = 'https://ringme.web.app/?tg=1&' + q;
             var openEl = document.getElementById('openApp');
-            openEl.href = deepLink;
+            openEl.href = targetUrl;
             openEl.classList.remove('hidden');
-            window.location.href = deepLink;
+            window.location.href = targetUrl;
         };
     </script>
     <script>
@@ -67,11 +72,17 @@
             if (token || id) {
                 document.getElementById('status').textContent = 'Перенаправление в приложение…';
                 var q = 'id=' + encodeURIComponent(id) + '&first_name=' + encodeURIComponent(first) + '&last_name=' + encodeURIComponent(last) + '&username=' + encodeURIComponent(username);
+                var ad = params.get('auth_date');
+                var h = params.get('hash');
+                var ph = params.get('photo_url');
+                if (ad) q += '&auth_date=' + encodeURIComponent(ad);
+                if (h) q += '&hash=' + encodeURIComponent(h);
+                if (ph) q += '&photo_url=' + encodeURIComponent(ph);
                 if (token) q += '&token=' + encodeURIComponent(token);
-                var deepLink = 'ringme://telegram?' + q;
-                document.getElementById('openApp').href = deepLink;
+                var targetUrl = 'https://ringme.web.app/?tg=1&' + q;
+                document.getElementById('openApp').href = targetUrl;
                 document.getElementById('openApp').classList.remove('hidden');
-                window.location.href = deepLink;
+                window.location.href = targetUrl;
                 setTimeout(function() {
                     document.getElementById('status').textContent = 'Если приложение не открылось, нажмите кнопку ниже.';
                 }, 2000);

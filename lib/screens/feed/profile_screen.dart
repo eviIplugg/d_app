@@ -53,22 +53,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'Профиль',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF333333),
-          ),
-        ),
+        title: const Text('Профиль'),
         actions: [
           IconButton(
-            icon: Icon(Icons.settings, color: Colors.grey.shade700),
+            icon: Icon(Icons.settings, color: theme.colorScheme.onSurfaceVariant),
             onPressed: () async {
               await Navigator.push(
                 context,
@@ -92,30 +83,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 )
-              : SingleChildScrollView(
+              : ListView(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildProfileHeader(),
-                      const SizedBox(height: 16),
-                      _buildProfileDataCard(),
-                      const SizedBox(height: 24),
-                      _menuTile('Культурный профиль', Icons.face, onTap: () {}),
-                      _menuTile('Мои истории', Icons.auto_stories, trailing: '0', onTap: () {}),
-                      _menuTile('Чекины', Icons.location_on_outlined, trailing: '0', onTap: () {}),
-                      _menuTile('Премиум', Icons.star_outline, onTap: () {}),
-                      _menuTile('История активности', Icons.history, onTap: () {}),
-                      if (_isAdmin)
-                        _menuTile('Админ-панель', Icons.admin_panel_settings, onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
-                        }),
-                      if (_isOrganizer)
-                        _menuTile('CRM организатора', Icons.store, onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const OrganizerDashboardScreen()));
-                        }),
-                    ],
-                  ),
+                  cacheExtent: 200,
+                  children: [
+                    RepaintBoundary(child: _buildProfileHeader()),
+                    const SizedBox(height: 16),
+                    RepaintBoundary(child: _buildProfileDataCard()),
+                    const SizedBox(height: 24),
+                    _menuTile('Культурный профиль', Icons.face, onTap: () {}),
+                    _menuTile('Мои истории', Icons.auto_stories, trailing: '0', onTap: () {}),
+                    _menuTile('Чекины', Icons.location_on_outlined, trailing: '0', onTap: () {}),
+                    _menuTile('Премиум', Icons.star_outline, onTap: () {}),
+                    _menuTile('История активности', Icons.history, onTap: () {}),
+                    if (_isAdmin)
+                      _menuTile('Админ-панель', Icons.admin_panel_settings, onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
+                      }),
+                    if (_isOrganizer)
+                      _menuTile('CRM организатора', Icons.store, onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const OrganizerDashboardScreen()));
+                      }),
+                  ],
                 ),
     );
   }
@@ -134,9 +123,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -155,7 +144,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             radius: 40,
             backgroundColor: Colors.grey.shade300,
             backgroundImage: photoUrl != null && photoUrl.isNotEmpty
-                ? NetworkImage(photoUrl)
+                ? ResizeImage(NetworkImage(photoUrl), width: 160, height: 160)
                 : null,
             child: photoUrl == null || photoUrl.isEmpty
                 ? const Icon(Icons.person, size: 40, color: Colors.white70)
@@ -250,9 +239,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -298,9 +287,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
