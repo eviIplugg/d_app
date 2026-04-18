@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../firebase/firestore_schema.dart';
 import 'auth/auth_service.dart';
+import 'image_optimization_service.dart';
 
 /// Сервис CRM для организаторов: мои места, мои мероприятия, создание/редактирование.
 class OrganizerCrmService {
@@ -19,18 +20,20 @@ class OrganizerCrmService {
   Future<String?> _uploadVenuePhoto({required String venueId, required String filePath}) async {
     final file = File(filePath);
     if (!await file.exists()) return null;
+    final optimized = await ImageOptimizationService.optimizeJpeg(file, minWidth: 1440, minHeight: 1440, quality: 74);
     final ts = DateTime.now().millisecondsSinceEpoch;
     final ref = _storage.ref().child('venues').child(venueId).child('photo').child('photo_$ts.jpg');
-    await ref.putFile(file);
+    await ref.putFile(optimized, SettableMetadata(contentType: 'image/jpeg', cacheControl: 'public,max-age=604800'));
     return await ref.getDownloadURL();
   }
 
   Future<String?> _uploadEventBanner({required String eventId, required String filePath}) async {
     final file = File(filePath);
     if (!await file.exists()) return null;
+    final optimized = await ImageOptimizationService.optimizeJpeg(file, minWidth: 1440, minHeight: 1440, quality: 74);
     final ts = DateTime.now().millisecondsSinceEpoch;
     final ref = _storage.ref().child('events').child(eventId).child('banner').child('banner_$ts.jpg');
-    await ref.putFile(file);
+    await ref.putFile(optimized, SettableMetadata(contentType: 'image/jpeg', cacheControl: 'public,max-age=604800'));
     return await ref.getDownloadURL();
   }
 
@@ -41,9 +44,10 @@ class OrganizerCrmService {
       if (p.trim().isEmpty) continue;
       final file = File(p);
       if (!await file.exists()) continue;
+      final optimized = await ImageOptimizationService.optimizeJpeg(file, minWidth: 1440, minHeight: 1440, quality: 74);
       final ts = DateTime.now().millisecondsSinceEpoch;
       final ref = _storage.ref().child('events').child(eventId).child('photos').child('${ts}_$i.jpg');
-      await ref.putFile(file);
+      await ref.putFile(optimized, SettableMetadata(contentType: 'image/jpeg', cacheControl: 'public,max-age=604800'));
       urls.add(await ref.getDownloadURL());
     }
     return urls;

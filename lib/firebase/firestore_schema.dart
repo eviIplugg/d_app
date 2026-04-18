@@ -35,6 +35,10 @@ const String kUserPreference = 'preference'; // 'men' | 'women' | 'everyone'
 const String kUserPhotos = 'photos'; // List<String> URLs
 const String kUserBio = 'bio';
 const String kUserCity = 'city'; // Название города (например из списка РФ)
+/// Геопозиция пользователя (широта/долгота). Используется для «рядом с вами» и Places.
+const String kUserGeoLat = 'geoLat';
+const String kUserGeoLng = 'geoLng';
+const String kUserGeoUpdatedAt = 'geoUpdatedAt'; // Timestamp
 const String kUserJob = 'job';
 const String kUserEducation = 'education'; // Уровень образования (ключ)
 const String kUserEducationLevel = 'educationLevel'; // среднее неполное | среднее полное | ...

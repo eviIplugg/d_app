@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'feed_events_body.dart';
 
 /// Активности: мероприятия и места проведения. Вкладки, поиск, секции с карточками событий.
@@ -12,9 +13,27 @@ class ActivitiesScreen extends StatefulWidget {
 class _ActivitiesScreenState extends State<ActivitiesScreen> {
   int _tabIndex = 0; // 0 = Мероприятия, 1 = Места проведения
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+  String _debouncedQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      _searchDebounce?.cancel();
+      _searchDebounce = Timer(const Duration(milliseconds: 260), () {
+        if (!mounted) return;
+        final q = _searchController.text.trim();
+        if (_debouncedQuery != q) {
+          setState(() => _debouncedQuery = q);
+        }
+      });
+    });
+  }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -53,29 +72,34 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: SegmentedButton<int>(
-                          segments: const [
-                            ButtonSegment(value: 0, label: Text('Мероприятия')),
-                            ButtonSegment(value: 1, label: Text('Места проведения')),
-                          ],
-                          selected: {_tabIndex},
-                          onSelectionChanged: (s) => setState(() => _tabIndex = s.first),
-                          style: ButtonStyle(
-                            backgroundColor: WidgetStateProperty.resolveWith((states) {
-                              if (states.contains(WidgetState.selected)) return const Color(0xFF81262B);
-                              return Colors.grey.shade200;
-                            }),
-                            foregroundColor: WidgetStateProperty.resolveWith((states) {
-                              if (states.contains(WidgetState.selected)) return Colors.white;
-                              return Colors.grey.shade700;
-                            }),
+                  child: LayoutBuilder(
+                    builder: (context, c) {
+                      final compact = c.maxWidth < 360;
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: SegmentedButton<int>(
+                              segments: [
+                                ButtonSegment(value: 0, label: Text(compact ? 'События' : 'Мероприятия')),
+                                ButtonSegment(value: 1, label: Text(compact ? 'Места' : 'Места проведения')),
+                              ],
+                              selected: {_tabIndex},
+                              onSelectionChanged: (s) => setState(() => _tabIndex = s.first),
+                              style: ButtonStyle(
+                                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                                  if (states.contains(WidgetState.selected)) return const Color(0xFF81262B);
+                                  return Colors.grey.shade200;
+                                }),
+                                foregroundColor: WidgetStateProperty.resolveWith((states) {
+                                  if (states.contains(WidgetState.selected)) return Colors.white;
+                                  return Colors.grey.shade700;
+                                }),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
+                        ],
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -102,7 +126,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
           Expanded(
             child: FeedEventsBody(
               tabIndex: _tabIndex,
-              searchQuery: _searchController.text,
+              searchQuery: _debouncedQuery,
             ),
           ),
         ],

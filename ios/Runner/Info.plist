@@ -72,6 +72,8 @@
 	<string>Нужен доступ к фото, чтобы выбрать фото для профиля.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Нужен доступ, чтобы сохранять фото профиля.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Нужен доступ к геолокации, чтобы показывать места и людей рядом.</string>
 	<key>VK_APP_CLIENT_ID</key>
 	<string>0</string>
 	<key>VK_APP_CLIENT_SECRET</key>

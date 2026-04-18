@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import '../firebase/firestore_schema.dart';
 import '../models/feed_post.dart';
 import 'auth/auth_service.dart';
+import 'image_optimization_service.dart';
 
 /// Сервис постов ленты: создание, стрим, лайки.
 /// Фото храним в Firebase Storage, а в Firestore — только download URL в поле photoUrls.
@@ -33,10 +34,19 @@ class PostService {
       if (path.trim().isEmpty) continue;
       final file = File(path);
       if (!await file.exists()) continue;
+      final optimized = await ImageOptimizationService.optimizeJpeg(
+        file,
+        minWidth: 1440,
+        minHeight: 1440,
+        quality: 74,
+      );
       final ts = DateTime.now().millisecondsSinceEpoch;
       // Storage rules ожидают путь posts/{userId}/...
       final ref = _storage.ref().child('posts').child(uid).child(postId).child('photos').child('${ts}_$i.jpg');
-      await ref.putFile(file);
+      await ref.putFile(
+        optimized,
+        SettableMetadata(contentType: 'image/jpeg', cacheControl: 'public,max-age=604800'),
+      );
       urls.add(await ref.getDownloadURL());
     }
     return urls;

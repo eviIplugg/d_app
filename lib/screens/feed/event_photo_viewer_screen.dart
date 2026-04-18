@@ -13,13 +13,29 @@ class EventPhotoViewerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (photoUrls.isEmpty) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text('Нет фото', style: TextStyle(color: Colors.white)),
+        ),
+        body: const Center(child: Text('Нет изображений для просмотра', style: TextStyle(color: Colors.white70))),
+      );
+    }
+    final maxIndex = photoUrls.length - 1;
+    final page = initialIndex.clamp(0, maxIndex < 0 ? 0 : maxIndex);
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
           PageView.builder(
             itemCount: photoUrls.length,
-            controller: PageController(initialPage: initialIndex.clamp(0, photoUrls.length - 1)),
+            controller: PageController(initialPage: page),
             itemBuilder: (context, index) {
               return Center(
                 child: InteractiveViewer(
@@ -41,11 +57,10 @@ class EventPhotoViewerScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const SizedBox(width: 40),
-                      if (photoUrls.isNotEmpty)
-                        Text(
-                          '${initialIndex + 1} из ${photoUrls.length}',
-                          style: const TextStyle(color: Colors.white, fontSize: 16),
-                        ),
+                      Text(
+                        '${page + 1} из ${photoUrls.length}',
+                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                      ),
                       IconButton(
                         icon: const Icon(Icons.close, color: Colors.white, size: 28),
                         onPressed: () => Navigator.pop(context),

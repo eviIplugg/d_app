@@ -1,12 +1,44 @@
 import 'package:flutter/material.dart';
 import 'cultural_dna_test_screen.dart';
+import '../../firebase/firestore_schema.dart';
 import '../../models/profile_draft.dart';
+import '../../services/auth/auth_service.dart';
+import '../../services/location_service.dart';
 import 'profile_flow_steps.dart';
 
 class GeolocationPermissionScreen extends StatelessWidget {
   final ProfileDraft draft;
 
   const GeolocationPermissionScreen({super.key, required this.draft});
+
+  Future<void> _enableAndContinue(BuildContext context) async {
+    try {
+      final loc = await LocationService.getCurrentLocation();
+      final auth = AuthService();
+      final uid = auth.currentUserId;
+      if (uid != null) {
+        await auth.updateUserProfile(uid: uid, profileData: {
+          kUserGeoLat: loc.lat,
+          kUserGeoLng: loc.lng,
+          kUserGeoUpdatedAt: DateTime.now(),
+        });
+      }
+      if (!context.mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CulturalDNATestScreen(draft: draft),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.orange),
+      );
+      // Если навсегда запрещено — удобно дать быстрый переход в настройки.
+      // Не блокируем флоу: пользователь может нажать «Позже».
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,15 +95,7 @@ class GeolocationPermissionScreen extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: Request geolocation permission
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CulturalDNATestScreen(draft: draft),
-                            ),
-                          );
-                        },
+                        onPressed: () => _enableAndContinue(context),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF81262B),
                           foregroundColor: Colors.white,

@@ -25,7 +25,18 @@ class DatingApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme(),
       themeMode: ThemeMode.system,
       scrollBehavior: _AppScrollBehavior(),
-      builder: (context, child) => AppPresenceScope(child: child),
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        final data = mq.copyWith(
+          // Сдерживаем экстремальное масштабирование шрифтов, чтобы верстка не "ломалась"
+          // на отдельных устройствах/системных настройках.
+          textScaler: mq.textScaler.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.2),
+        );
+        return MediaQuery(
+          data: data,
+          child: AppPresenceScope(child: child ?? const SizedBox.shrink()),
+        );
+      },
       home: const ThemeAwareSplash(),
     );
   }

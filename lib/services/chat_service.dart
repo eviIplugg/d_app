@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 import '../firebase/firestore_schema.dart';
+import 'image_optimization_service.dart';
 import 'auth/auth_service.dart';
 
 /// Модель чата для списка (другой пользователь, последнее сообщение, непрочитанные).
@@ -327,12 +328,21 @@ class ChatService {
   Future<String> uploadChatImage(String chatId, File file) async {
     final uid = _uid;
     if (uid == null) throw StateError('Not authenticated');
+    final optimized = await ImageOptimizationService.optimizeJpeg(
+      file,
+      minWidth: 1280,
+      minHeight: 1280,
+      quality: 74,
+    );
     final ref = _storage
         .ref()
         .child('chats')
         .child(chatId)
         .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
-    await ref.putFile(file);
+    await ref.putFile(
+      optimized,
+      SettableMetadata(contentType: 'image/jpeg', cacheControl: 'public,max-age=604800'),
+    );
     return ref.getDownloadURL();
   }
 }

@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../firebase/firestore_schema.dart';
 import '../models/story_item.dart';
+import 'image_optimization_service.dart';
 import 'auth/auth_service.dart';
 
 /// Истории в стиле Telegram: видны только мэтчам и скрываются после 24 часов.
@@ -102,7 +103,16 @@ class StoryService {
     } else {
       final file = File(image.path);
       if (!await file.exists()) return null;
-      await path.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
+      final optimized = await ImageOptimizationService.optimizeJpeg(
+        file,
+        minWidth: 1080,
+        minHeight: 1080,
+        quality: 74,
+      );
+      await path.putFile(
+        optimized,
+        SettableMetadata(contentType: 'image/jpeg', cacheControl: 'public,max-age=604800'),
+      );
     }
     final url = await path.getDownloadURL();
 

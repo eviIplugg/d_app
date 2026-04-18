@@ -31,13 +31,13 @@ class FeedPost {
   FeedPost({
     required this.id,
     required this.authorId,
-    this.photoUrls = const [],
-    this.photoDataUrls = const [],
+    List<String>? photoUrlsIn,
+    List<String>? photoDataUrlsIn,
     this.caption = '',
     required this.createdAt,
     this.type = 'personal',
     this.likeCount = 0,
-    this.likedBy = const [],
+    List<String>? likedByIn,
     this.activityTitle,
     this.activityDate,
     this.activityVenue,
@@ -45,12 +45,24 @@ class FeedPost {
     this.activityPrice,
     this.activityRating,
     this.activityTag,
-  });
+  })  : photoUrls = _nonEmptyStringList(photoUrlsIn),
+        photoDataUrls = _nonEmptyStringList(photoDataUrlsIn),
+        likedBy = _nonEmptyStringList(likedByIn);
+
+  static List<String> _nonEmptyStringList(List<String>? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+    return List<String>.from(raw.map((e) => e.trim()).where((s) => s.isNotEmpty));
+  }
 
   bool get isActivity => type == 'activity';
   bool isLikedBy(String userId) => likedBy.contains(userId);
+
   /// URL или data URL для отображения (сначала photoUrls, иначе photoDataUrls).
-  List<String> get displayPhotoUrls => photoUrls.isNotEmpty ? photoUrls : photoDataUrls;
+  List<String> get displayPhotoUrls {
+    if (photoUrls.isNotEmpty) return List<String>.from(photoUrls);
+    if (photoDataUrls.isNotEmpty) return List<String>.from(photoDataUrls);
+    return const <String>[];
+  }
 
   static FeedPost fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
@@ -72,13 +84,13 @@ class FeedPost {
     return FeedPost(
       id: doc.id,
       authorId: d[kPostAuthorId]?.toString() ?? '',
-      photoUrls: urls,
-      photoDataUrls: dataUrlList,
+      photoUrlsIn: urls,
+      photoDataUrlsIn: dataUrlList,
       caption: d[kPostCaption]?.toString() ?? '',
       createdAt: createdAt,
       type: d[kPostType]?.toString() ?? 'personal',
       likeCount: (d[kPostLikeCount] is int) ? d[kPostLikeCount] as int : 0,
-      likedBy: likedList,
+      likedByIn: likedList,
       activityTitle: d[kPostActivityTitle]?.toString(),
       activityDate: d[kPostActivityDate]?.toString(),
       activityVenue: d[kPostActivityVenue]?.toString(),

@@ -125,28 +125,25 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Войдите через Telegram — дальше заполните профиль в приложении.',
+                      'Выберите способ входа — дальше заполните профиль в приложении.',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.35),
                     ),
                     const SizedBox(height: 40),
                     _AuthButton(
-                      text: 'Войти через Telegram',
-                      onPressed: () => _openTelegram(context),
-                      accentColor: const Color(0xFF0088CC),
-                    ),
-                    const SizedBox(height: 20),
-                    TextButton(
+                      text: 'Войти по номеру телефона',
                       onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute<void>(builder: (_) => const PhoneInputScreen()),
                         );
                       },
-                      child: Text(
-                        'Войти по номеру телефона',
-                        style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
-                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _AuthButton(
+                      text: 'Войти через Telegram',
+                      onPressed: () => _openTelegram(context),
+                      accentColor: const Color(0xFF0088CC),
                     ),
                   ],
                 ),

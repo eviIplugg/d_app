@@ -58,85 +58,84 @@ class _MainAppShellState extends State<MainAppShell> {
     RepaintBoundary(child: ProfileScreen()),
   ];
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
-    final onSurfaceVariant = theme.colorScheme.onSurfaceVariant;
+  Widget _buildTabStack(double? narrowMax, bool useRail) {
+    Widget tabStack = IndexedStack(
+      index: _currentIndex,
+      children: _tabChildren,
+    );
 
+    if (narrowMax != null) {
+      tabStack = Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: narrowMax),
+          child: tabStack,
+        ),
+      );
+    } else if (useRail) {
+      tabStack = Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: WebLayout.desktopContentMaxWidth),
+          child: tabStack,
+        ),
+      );
+    }
+    return tabStack;
+  }
+
+  Widget _buildNavigationRail(
+    ThemeData theme,
+    Color primary,
+    Color onSurfaceVariant,
+    bool extendedRail,
+  ) {
     return StreamBuilder<int>(
       stream: ChatService().streamTotalUnreadCount(),
       builder: (context, snapshot) {
         final chatsUnreadCount = snapshot.data ?? 0;
-        final useRail = WebLayout.useSideNavigation(context);
-        final extendedRail = WebLayout.useExtendedRail(context);
-        final narrowMax = WebLayout.narrowWebMaxWidth(context);
-
-        Widget tabStack = IndexedStack(
-          index: _currentIndex,
-          children: _tabChildren,
+        return NavigationRail(
+          extended: extendedRail,
+          backgroundColor: theme.colorScheme.surface,
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (i) => setState(() => _currentIndex = i),
+          labelType: extendedRail ? NavigationRailLabelType.all : NavigationRailLabelType.selected,
+          leading: Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 16),
+            child: Text(
+              'Ring me.',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: primary,
+              ),
+            ),
+          ),
+          destinations: [
+            for (var i = 0; i < _destinations.length; i++)
+              _railDestination(
+                context,
+                _destinations[i],
+                i,
+                chatsUnreadCount,
+                _currentIndex == i,
+                primary,
+                onSurfaceVariant,
+              ),
+          ],
         );
+      },
+    );
+  }
 
-        if (narrowMax != null) {
-          tabStack = Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: narrowMax),
-              child: tabStack,
-            ),
-          );
-        } else if (useRail) {
-          tabStack = Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: WebLayout.desktopContentMaxWidth),
-              child: tabStack,
-            ),
-          );
-        }
-
-        if (useRail) {
-          return Scaffold(
-            body: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                NavigationRail(
-                  extended: extendedRail,
-                  backgroundColor: theme.colorScheme.surface,
-                  selectedIndex: _currentIndex,
-                  onDestinationSelected: (i) => setState(() => _currentIndex = i),
-                  labelType: extendedRail
-                      ? NavigationRailLabelType.all
-                      : NavigationRailLabelType.selected,
-                  leading: Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 16),
-                    child: Text(
-                      'Ring me.',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: primary,
-                      ),
-                    ),
-                  ),
-                  destinations: [
-                    for (var i = 0; i < _destinations.length; i++)
-                      _railDestination(
-                        context,
-                        _destinations[i],
-                        i,
-                        chatsUnreadCount,
-                        _currentIndex == i,
-                        primary,
-                        onSurfaceVariant,
-                      ),
-                  ],
-                ),
-                VerticalDivider(thickness: 1, width: 1, color: theme.dividerColor),
-                Expanded(child: tabStack),
-              ],
-            ),
-          );
-        }
-
+  Widget _buildBottomNavigationBar(
+    ThemeData theme,
+    Color primary,
+    Color onSurfaceVariant,
+    double? narrowMax,
+  ) {
+    return StreamBuilder<int>(
+      stream: ChatService().streamTotalUnreadCount(),
+      builder: (context, snapshot) {
+        final chatsUnreadCount = snapshot.data ?? 0;
         Widget bottomBar = Container(
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
@@ -204,11 +203,38 @@ class _MainAppShellState extends State<MainAppShell> {
           );
         }
 
-        return Scaffold(
-          body: tabStack,
-          bottomNavigationBar: RepaintBoundary(child: bottomBar),
-        );
+        return RepaintBoundary(child: bottomBar);
       },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurfaceVariant = theme.colorScheme.onSurfaceVariant;
+    final useRail = WebLayout.useSideNavigation(context);
+    final extendedRail = WebLayout.useExtendedRail(context);
+    final narrowMax = WebLayout.narrowWebMaxWidth(context);
+
+    final tabStack = _buildTabStack(narrowMax, useRail);
+
+    if (useRail) {
+      return Scaffold(
+        body: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildNavigationRail(theme, primary, onSurfaceVariant, extendedRail),
+            VerticalDivider(thickness: 1, width: 1, color: theme.dividerColor),
+            Expanded(child: tabStack),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      body: tabStack,
+      bottomNavigationBar: _buildBottomNavigationBar(theme, primary, onSurfaceVariant, narrowMax),
     );
   }
 
