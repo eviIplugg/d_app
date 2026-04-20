@@ -14,26 +14,25 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final GlobalKey<FeedContentState> _feedKey = GlobalKey<FeedContentState>();
 
-  static const Color _titleColor = Color(0xFF333333);
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Поиск',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: _titleColor,
+            color: theme.colorScheme.onSurface,
           ),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.tune, color: Colors.grey.shade700),
+            icon: Icon(Icons.tune, color: theme.colorScheme.onSurfaceVariant),
             onPressed: () async {
               await Navigator.push(
                 context,

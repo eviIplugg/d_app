@@ -22,7 +22,10 @@ function verifyTelegramLoginPayload(raw: Record<string, unknown>, botToken: stri
   for (const [k, v] of Object.entries(raw)) {
     if (k === 'hash' || k === 'tg') continue;
     if (v === undefined || v === null) continue;
-    pairs.push([k, String(v)]);
+    const s = String(v);
+    // Как у Telegram: пустые поля не участвуют в data-check-string (иначе deep link с last_name= ломает HMAC).
+    if (s.trim() === '') continue;
+    pairs.push([k, s]);
   }
   pairs.sort((a, b) => a[0].localeCompare(b[0]));
   const checkString = pairs.map(([k, v]) => `${k}=${v}`).join('\n');
@@ -224,6 +227,33 @@ export const telegramSignIn = onCall(
 
     const customToken = await admin.auth().createCustomToken(uid);
     return { customToken };
+  }
+);
+
+/**
+ * Выдаёт custom token для входа в CRM на другом origin (dating-app-34f38.web.app).
+ * Использование: авторизованный админ в основном приложении запрашивает ссылку и открывает CRM.
+ */
+export const issueCrmLoginToken = onCall(
+  {
+    region: 'us-central1',
+    maxInstances: 20,
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError('unauthenticated', 'Auth required');
+    }
+
+    const userSnap = await db.collection('users').doc(uid).get();
+    const role = userSnap.data()?.role;
+    if (role !== 'admin') {
+      throw new HttpsError('permission-denied', 'Admin only');
+    }
+
+    const customToken = await admin.auth().createCustomToken(uid, { crm: true });
+    const crmUrl = `https://dating-app-34f38.web.app/?crm_token=${encodeURIComponent(customToken)}`;
+    return { customToken, crmUrl };
   }
 );
 

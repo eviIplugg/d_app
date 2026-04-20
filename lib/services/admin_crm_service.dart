@@ -91,6 +91,82 @@ class AdminCrmService {
     return q.get();
   }
 
+  /// Поиск пользователей для CRM:
+  /// - по UID документа users/{uid}
+  /// - по точному/префиксному имени
+  Future<List<DocumentSnapshot<Map<String, dynamic>>>> searchUsersByNameOrId(
+    String query, {
+    int limit = 20,
+  }) async {
+    final q = query.trim();
+    if (q.isEmpty) return const [];
+
+    final byId = <DocumentSnapshot<Map<String, dynamic>>>[];
+    // Пытаемся считать ID документа (uid).
+    final idSnap = await _firestore.collection(kUsersCollection).doc(q).get();
+    if (idSnap.exists) byId.add(idSnap);
+
+    final results = <String, DocumentSnapshot<Map<String, dynamic>>>{};
+    for (final d in byId) {
+      results[d.id] = d;
+    }
+
+    try {
+      // Точный матч по имени.
+      final exact = await _firestore
+          .collection(kUsersCollection)
+          .where(kUserName, isEqualTo: q)
+          .limit(limit)
+          .get();
+      for (final d in exact.docs) {
+        results[d.id] = d;
+      }
+    } catch (_) {
+      // ignore and continue with fallback
+    }
+
+    try {
+      // Префикс по имени (A..A\uf8ff).
+      final prefix = await _firestore
+          .collection(kUsersCollection)
+          .orderBy(kUserName)
+          .startAt([q])
+          .endAt(['$q\uf8ff'])
+          .limit(limit)
+          .get();
+      for (final d in prefix.docs) {
+        results[d.id] = d;
+      }
+    } catch (_) {
+      // На случай отсутствия индекса — fallback ниже.
+    }
+
+    if (results.isEmpty) {
+      // Fallback: последние пользователи + локальная фильтрация по имени.
+      final recent = await _firestore
+          .collection(kUsersCollection)
+          .orderBy(kUserCreatedAt, descending: true)
+          .limit(200)
+          .get();
+      final qLower = q.toLowerCase();
+      for (final d in recent.docs) {
+        final name = (d.data()[kUserName]?.toString() ?? '').toLowerCase();
+        if (name.contains(qLower)) {
+          results[d.id] = d;
+          if (results.length >= limit) break;
+        }
+      }
+    }
+
+    final list = results.values.toList();
+    list.sort((a, b) {
+      final an = a.data()?[kUserName]?.toString() ?? '';
+      final bn = b.data()?[kUserName]?.toString() ?? '';
+      return an.compareTo(bn);
+    });
+    return list.take(limit).toList();
+  }
+
   /// Обновить профиль пользователя (верификация, роль, бан). Только админ.
   Future<void> updateUserByAdmin(String userId, Map<String, dynamic> updates) async {
     final ref = _firestore.collection(kUsersCollection).doc(userId);

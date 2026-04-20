@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../services/auth/telegram_deep_link_gate.dart';
 import 'splash_routes.dart';
 
 class RedSplash extends StatefulWidget {
@@ -40,10 +41,11 @@ class _RedSplashState extends State<RedSplash>
 
     _controller.forward();
 
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        navigateAfterSplash(context);
-      }
+    Future.delayed(const Duration(seconds: 2), () async {
+      if (!mounted) return;
+      await TelegramDeepLinkGate.waitForInitialDeepLinkHandling();
+      if (!mounted) return;
+      await navigateAfterSplash(context);
     });
   }
 

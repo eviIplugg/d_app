@@ -45,14 +45,22 @@ class _NameScreenState extends State<NameScreen> {
     }
   }
 
-  InputDecoration _inputDecoration(String label) {
+  InputDecoration _inputDecoration(BuildContext context, String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return InputDecoration(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       labelText: label,
+      labelStyle: TextStyle(color: isDark ? Colors.white70 : null),
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE0E0E0), width: 1)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE0E0E0), width: 1)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFE0E0E0), width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFE0E0E0), width: 1),
+      ),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF81262B), width: 1)),
       errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red, width: 1)),
       focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red, width: 1)),
@@ -71,8 +79,11 @@ class _NameScreenState extends State<NameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF111111) : const Color(0xFFF3F3F3);
+    final text = isDark ? Colors.white : const Color(0xFF333333);
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -88,12 +99,12 @@ class _NameScreenState extends State<NameScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Title
-                      const Text(
+                      Text(
                         'Как вас зовут?',
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF333333),
+                          color: text,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -104,15 +115,15 @@ class _NameScreenState extends State<NameScreen> {
                         textInputAction: TextInputAction.next,
                         validator: _validateName,
                         autofocus: true,
-                        decoration: _inputDecoration('Имя'),
-                        style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
+                        decoration: _inputDecoration(context, 'Имя'),
+                        style: TextStyle(fontSize: 16, color: text),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _surnameController,
                         textInputAction: TextInputAction.done,
-                        decoration: _inputDecoration('Фамилия (необязательно)'),
-                        style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
+                        decoration: _inputDecoration(context, 'Фамилия (необязательно)'),
+                        style: TextStyle(fontSize: 16, color: text),
                       ),
                     ],
                   ),
@@ -152,16 +163,15 @@ class _NameScreenState extends State<NameScreen> {
   }
 
   Widget _buildHeader({required int step, required int totalSteps}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final text = isDark ? Colors.white : const Color(0xFF333333);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Row(
         children: [
           // Back button
           IconButton(
-            icon: const Icon(
-              Icons.arrow_back,
-              color: Color(0xFF333333),
-            ),
+            icon: Icon(Icons.arrow_back, color: text),
             onPressed: () {
               if (Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
@@ -173,7 +183,7 @@ class _NameScreenState extends State<NameScreen> {
             child: Container(
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
               ),
               child: FractionallySizedBox(
@@ -193,10 +203,10 @@ class _NameScreenState extends State<NameScreen> {
             padding: const EdgeInsets.only(left: 16.0),
             child: Text(
               '$step/$totalSteps',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF333333),
+                color: text,
               ),
             ),
           ),

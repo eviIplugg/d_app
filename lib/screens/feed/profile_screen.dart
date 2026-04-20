@@ -110,6 +110,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF333333);
+    final borderColor = isDark ? Colors.white24 : Colors.transparent;
     final name = _profile![kUserName]?.toString() ?? 'Пользователь';
     final city = _profile![kUserCity]?.toString();
     final photos = _profile![kUserPhotos];
@@ -119,8 +123,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -160,10 +165,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Flexible(
                       child: Text(
                         name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF333333),
+                          color: titleColor,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -173,14 +178,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const Icon(Icons.verified, color: Color(0xFF81262B), size: 22),
                     ],
                     const Spacer(),
-                    Icon(Icons.edit_outlined, size: 20, color: Colors.grey.shade600),
+                    Icon(Icons.edit_outlined, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ],
                 ),
                 if (city != null && city.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
                     city,
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ],
@@ -228,6 +233,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileDataCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final borderColor = isDark ? Colors.white24 : Colors.transparent;
     final city = _profile![kUserCity]?.toString();
     final bio = _profile![kUserBio]?.toString();
     final job = _profile![kUserJob]?.toString();
@@ -235,8 +243,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -257,9 +266,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _dataRow('Образование', education ?? '—'),
           if (bio != null && bio.isNotEmpty) ...[
             const SizedBox(height: 12),
-            const Text('О себе', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+            Text(
+              'О себе',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text(bio, style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.4)),
+            Text(
+              bio,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
           ],
         ],
       ),
@@ -272,19 +295,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 130, child: Text(label, style: TextStyle(fontSize: 14, color: Colors.grey.shade600))),
-          Expanded(child: Text(value.isEmpty ? '—' : value, style: const TextStyle(fontSize: 14, color: Color(0xFF333333)))),
+          SizedBox(
+            width: 130,
+            child: Text(label, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ),
+          Expanded(
+            child: Text(
+              value.isEmpty ? '—' : value,
+              style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _menuTile(String title, IconData icon, {String? trailing, VoidCallback? onTap}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? Colors.white24 : Colors.transparent;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -295,13 +329,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: ListTile(
         leading: Icon(icon, color: const Color(0xFF81262B), size: 24),
-        title: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (trailing != null) Text(trailing, style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+            if (trailing != null)
+              Text(
+                trailing,
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
+              ),
             const SizedBox(width: 8),
-            Icon(Icons.chevron_right, color: Colors.grey.shade400),
+            Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
           ],
         ),
         onTap: onTap,

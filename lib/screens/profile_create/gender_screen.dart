@@ -44,8 +44,11 @@ class _GenderScreenState extends State<GenderScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF111111) : const Color(0xFFF3F3F3);
+    final text = isDark ? Colors.white : const Color(0xFF333333);
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -60,12 +63,12 @@ class _GenderScreenState extends State<GenderScreen> {
                   children: [
                     const SizedBox(height: 40),
                     // Gender selection
-                    const Text(
+                    Text(
                       'Ваш пол',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF333333),
+                        color: text,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -76,6 +79,7 @@ class _GenderScreenState extends State<GenderScreen> {
                           child: _buildGenderChip(
                             label: 'Мужской',
                             isSelected: _selectedGender == 'male',
+                            isDark: isDark,
                             onTap: () {
                               setState(() {
                                 _selectedGender = 'male';
@@ -88,6 +92,7 @@ class _GenderScreenState extends State<GenderScreen> {
                           child: _buildGenderChip(
                             label: 'Женский',
                             isSelected: _selectedGender == 'female',
+                            isDark: isDark,
                             onTap: () {
                               setState(() {
                                 _selectedGender = 'female';
@@ -99,12 +104,12 @@ class _GenderScreenState extends State<GenderScreen> {
                     ),
                     const SizedBox(height: 48),
                     // Preference selection
-                    const Text(
+                    Text(
                       'Кого показывать',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF333333),
+                        color: text,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -115,6 +120,7 @@ class _GenderScreenState extends State<GenderScreen> {
                           child: _buildPreferenceChip(
                             label: 'Мужчин',
                             isSelected: _selectedPreference == 'men',
+                            isDark: isDark,
                             onTap: () {
                               setState(() {
                                 _selectedPreference = 'men';
@@ -127,6 +133,7 @@ class _GenderScreenState extends State<GenderScreen> {
                           child: _buildPreferenceChip(
                             label: 'Женщин',
                             isSelected: _selectedPreference == 'women',
+                            isDark: isDark,
                             onTap: () {
                               setState(() {
                                 _selectedPreference = 'women';
@@ -139,6 +146,7 @@ class _GenderScreenState extends State<GenderScreen> {
                           child: _buildPreferenceChip(
                             label: 'Всех',
                             isSelected: _selectedPreference == 'everyone',
+                            isDark: isDark,
                             onTap: () {
                               setState(() {
                                 _selectedPreference = 'everyone';
@@ -188,6 +196,7 @@ class _GenderScreenState extends State<GenderScreen> {
   Widget _buildGenderChip({
     required String label,
     required bool isSelected,
+    required bool isDark,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -196,7 +205,7 @@ class _GenderScreenState extends State<GenderScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF81262B) : Colors.grey.shade300,
+          color: isSelected ? const Color(0xFF81262B) : (isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade300),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Center(
@@ -205,7 +214,7 @@ class _GenderScreenState extends State<GenderScreen> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: isSelected ? Colors.white : const Color(0xFF333333),
+              color: isSelected ? Colors.white : (isDark ? Colors.white : const Color(0xFF333333)),
             ),
           ),
         ),
@@ -216,6 +225,7 @@ class _GenderScreenState extends State<GenderScreen> {
   Widget _buildPreferenceChip({
     required String label,
     required bool isSelected,
+    required bool isDark,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -224,7 +234,7 @@ class _GenderScreenState extends State<GenderScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF81262B) : Colors.grey.shade300,
+          color: isSelected ? const Color(0xFF81262B) : (isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade300),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Center(
@@ -233,7 +243,7 @@ class _GenderScreenState extends State<GenderScreen> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: isSelected ? Colors.white : const Color(0xFF333333),
+              color: isSelected ? Colors.white : (isDark ? Colors.white : const Color(0xFF333333)),
             ),
           ),
         ),
@@ -242,15 +252,17 @@ class _GenderScreenState extends State<GenderScreen> {
   }
 
   Widget _buildHeader({required int step, required int totalSteps}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final text = isDark ? Colors.white : const Color(0xFF333333);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Row(
         children: [
           // Back button
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back,
-              color: Color(0xFF333333),
+              color: text,
             ),
             onPressed: () {
               if (Navigator.of(context).canPop()) {
@@ -263,7 +275,7 @@ class _GenderScreenState extends State<GenderScreen> {
             child: Container(
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
               ),
               child: FractionallySizedBox(
@@ -283,10 +295,10 @@ class _GenderScreenState extends State<GenderScreen> {
             padding: const EdgeInsets.only(left: 16.0),
             child: Text(
               '$step/$totalSteps',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF333333),
+                color: text,
               ),
             ),
           ),

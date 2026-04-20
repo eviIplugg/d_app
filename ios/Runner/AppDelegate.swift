@@ -1,6 +1,5 @@
 import Flutter
 import UIKit
-import vkid_flutter_sdk
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -14,9 +13,9 @@ import vkid_flutter_sdk
   override func application(
     _ app: UIApplication,
     open url: URL,
-    options: [UIApplication.OpenURLOptionsKey : Any] = [:]
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
-    return VkidFlutterSdkPlugin.vkid.open(url: url)
+    return super.application(app, open: url, options: options)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {

@@ -29,12 +29,27 @@
       "rewrites": [
         {
           "source": "**",
-          "destination": "/index.html"
+          "destination": "/telegram_auth.html"
         }
       ]
     },
     {
       "target": "crm",
+      "public": "build/web_crm",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    },
+    {
+      "target": "consumer",
       "public": "build/web",
       "ignore": [
         "firebase.json",

@@ -19,8 +19,8 @@ class PhoneInputCodeScreen extends StatefulWidget {
 }
 
 class _PhoneInputCodeScreenState extends State<PhoneInputCodeScreen> {
-  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final TextEditingController _codeController = TextEditingController();
+  final FocusNode _codeFocusNode = FocusNode();
   static const int _resendCooldownSeconds = 59;
   int _resendSecondsLeft = _resendCooldownSeconds;
   final AuthService _authService = AuthService();
@@ -46,39 +46,13 @@ class _PhoneInputCodeScreenState extends State<PhoneInputCodeScreen> {
 
   @override
   void dispose() {
-    for (final c in _controllers) {
-      c.dispose();
-    }
-    for (final f in _focusNodes) {
-      f.dispose();
-    }
+    _codeController.dispose();
+    _codeFocusNode.dispose();
     super.dispose();
   }
 
-  void _onCodeChanged(int index, String value) {
-    if (value.length > 1) {
-      final digits = value.replaceAll(RegExp(r'\D'), '').split('').take(6).toList();
-      for (var i = 0; i < digits.length && index + i < 6; i++) {
-        _controllers[index + i].text = digits[i];
-        if (index + i < 5) _focusNodes[index + i + 1].requestFocus();
-      }
-      if (digits.length == 6) _submitCode();
-      return;
-    }
-    if (value.isNotEmpty) {
-      if (index < 5) {
-        _focusNodes[index + 1].requestFocus();
-      } else {
-        _focusNodes[index].unfocus();
-        _submitCode();
-      }
-    } else {
-      if (index > 0) _focusNodes[index - 1].requestFocus();
-    }
-  }
-
   Future<void> _submitCode() async {
-    final code = _controllers.map((c) => c.text).join();
+    final code = _codeController.text.trim();
     if (code.length != 6) return;
 
     setState(() => _isVerifying = true);
@@ -136,8 +110,13 @@ class _PhoneInputCodeScreenState extends State<PhoneInputCodeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF111111) : const Color(0xFFF3F3F3);
+    final fg = isDark ? Colors.white : Colors.black;
+    final fieldBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final fieldBorder = isDark ? Colors.white24 : Colors.grey.shade400;
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: bg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -145,52 +124,73 @@ class _PhoneInputCodeScreenState extends State<PhoneInputCodeScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF333333)),
+                icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : const Color(0xFF333333)),
                 onPressed: () {
                   if (Navigator.of(context).canPop()) Navigator.of(context).pop();
                 },
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Введите код из SMS',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w600,
-                color: Colors.black,
+                color: fg,
               ),
             ),
             const SizedBox(height: 48),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(6, (index) {
-                  return SizedBox(
-                    width: 44,
-                    height: 52,
-                    child: TextField(
-                      controller: _controllers[index],
-                      focusNode: _focusNodes[index],
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      maxLength: 1,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Colors.black),
-                      decoration: InputDecoration(
-                        counterText: '',
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: EdgeInsets.zero,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade400)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade400)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF81262B), width: 2)),
+              child: GestureDetector(
+                onTap: () => _codeFocusNode.requestFocus(),
+                child: Stack(
+                  children: [
+                    Opacity(
+                      opacity: 0.01,
+                      child: TextField(
+                        controller: _codeController,
+                        focusNode: _codeFocusNode,
+                        autofocus: true,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        onChanged: (_) {
+                          setState(() {});
+                          if (_codeController.text.length == 6) {
+                            _submitCode();
+                          }
+                        },
                       ),
-                      onChanged: (value) => _onCodeChanged(index, value),
                     ),
-                  );
-                }),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(6, (index) {
+                        final chars = _codeController.text.split('');
+                        final char = index < chars.length ? chars[index] : '';
+                        final selected = _codeFocusNode.hasFocus && index == chars.length.clamp(0, 5);
+                        return Container(
+                          width: 44,
+                          height: 52,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: fieldBg,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: selected ? const Color(0xFF81262B) : fieldBorder,
+                              width: selected ? 2 : 1,
+                            ),
+                          ),
+                          child: Text(
+                            char,
+                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: fg),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
               ),
             ),
             if (_isVerifying)
@@ -211,7 +211,7 @@ class _PhoneInputCodeScreenState extends State<PhoneInputCodeScreen> {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 16,
-                        color: _resendSecondsLeft > 0 ? Colors.grey : Colors.black,
+                        color: _resendSecondsLeft > 0 ? (isDark ? Colors.white38 : Colors.grey) : fg,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -229,9 +229,9 @@ class _PhoneInputCodeScreenState extends State<PhoneInputCodeScreen> {
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text(
+                    child: Text(
                       'Другой способ',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: fg),
                     ),
                   ),
                 ],

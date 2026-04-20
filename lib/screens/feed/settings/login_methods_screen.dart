@@ -32,8 +32,7 @@ class _LoginMethodsScreenState extends State<LoginMethodsScreen> {
       return;
     }
 
-    // На web редирект/коллбэки лучше работают через отдельный hosting (auth-ringme.web.app),
-    // поэтому открываем страницу в браузере без WebView.
+    // На web открываем страницу виджета на том же хосте, что и приложение (см. hosting/telegram.html → build/web).
     if (kIsWeb) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -41,8 +40,7 @@ class _LoginMethodsScreenState extends State<LoginMethodsScreen> {
         );
       }
 
-      final url = telegramBotDomain.trim();
-      final uri = url.startsWith('http://') || url.startsWith('https://') ? Uri.parse(url) : Uri.parse('https://$url');
+      final uri = Uri.parse(telegramWidgetPageUrl);
       // Важно: не делаем `await`, чтобы браузер считал это реакцией на клик.
       try {
         launchUrl(uri, mode: LaunchMode.externalApplication).then((ok) {
@@ -76,6 +74,28 @@ class _LoginMethodsScreenState extends State<LoginMethodsScreen> {
     if (ok == true && mounted) setState(() {});
   }
 
+  Future<void> _openCrmByToken() async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Генерируем токен CRM...'), backgroundColor: Colors.blueGrey),
+    );
+    try {
+      final crmUrl = await _auth.issueCrmLoginLink();
+      final ok = await launchUrl(Uri.parse(crmUrl), mode: LaunchMode.externalApplication);
+      if (!mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось открыть CRM ссылку'), backgroundColor: Colors.orange),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('CRM токен не получен: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -103,6 +123,7 @@ class _LoginMethodsScreenState extends State<LoginMethodsScreen> {
           }
           final tgId = profile?[kUserTelegramUserId]?.toString();
           final tgLabel = (tgId != null && tgId.isNotEmpty) ? 'Привязан (ID: $tgId)' : 'Не привязан';
+          final role = profile?[kUserRole]?.toString() ?? 'user';
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -132,6 +153,13 @@ class _LoginMethodsScreenState extends State<LoginMethodsScreen> {
                 icon: Icons.g_mobiledata,
                 subtitle: 'Нет данных',
               ),
+              if (role == 'admin')
+                _tile(
+                  title: 'CRM вход по токену',
+                  icon: Icons.admin_panel_settings,
+                  subtitle: 'Открыть CRM и войти по custom token',
+                  onTap: _openCrmByToken,
+                ),
             ],
           );
         },

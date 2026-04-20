@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../firebase/firestore_schema.dart';
+import '../models/profile_draft.dart';
 import '../screens/profile_create/name_screen.dart';
 import '../screens/welcome/returning_user_welcome_screen.dart';
 import '../services/auth/auth_service.dart';
@@ -9,6 +10,7 @@ import '../services/auth/auth_service.dart';
 class AuthAfterSignIn {
   AuthAfterSignIn._();
 
+  /// Полный профиль: имя и (пол или фото). Имя только из Telegram/телефона — всё ещё онбординг.
   static Future<void> navigateFromProfile(
     BuildContext context,
     AuthService auth,
@@ -16,7 +18,7 @@ class AuthAfterSignIn {
   ) async {
     if (!context.mounted) return;
 
-    if (auth.hasProfileWithName(profile)) {
+    if (auth.isProfileRegistered(profile)) {
       final name = profile?[kUserName]?.toString() ?? 'Пользователь';
       Navigator.pushReplacement(
         context,
@@ -25,9 +27,12 @@ class AuthAfterSignIn {
         ),
       );
     } else {
+      final draftName = profile?[kUserName]?.toString().trim() ?? '';
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute<void>(builder: (_) => const NameScreen()),
+        MaterialPageRoute<void>(
+          builder: (_) => NameScreen(draft: ProfileDraft(name: draftName)),
+        ),
       );
     }
   }

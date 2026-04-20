@@ -59,15 +59,31 @@ class _FeedFiltersScreenState extends State<FeedFiltersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cs.surface,
+        foregroundColor: cs.onSurface,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF333333)), onPressed: () => Navigator.pop(context)),
-        title: const Text('Фильтры', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: cs.onSurface),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Фильтры',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: cs.onSurface,
+          ),
+        ),
         actions: [
-          TextButton(onPressed: _reset, child: const Text('Сбросить')),
+          TextButton(
+            onPressed: _reset,
+            child: Text('Сбросить', style: TextStyle(color: cs.primary)),
+          ),
           TextButton(
             onPressed: () {
               FeedService().currentFilter = {
@@ -79,11 +95,21 @@ class _FeedFiltersScreenState extends State<FeedFiltersScreen> {
               };
               Navigator.pop(context);
             },
-            child: const Text('Готово', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: Text('Готово', style: TextStyle(fontWeight: FontWeight.w600, color: cs.primary)),
           ),
         ],
       ),
-      body: ListView(
+      body: Theme(
+        data: theme.copyWith(
+          sliderTheme: theme.sliderTheme.copyWith(
+            activeTrackColor: cs.primary,
+            inactiveTrackColor: cs.outlineVariant,
+            rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 8),
+            thumbColor: cs.primary,
+            overlayColor: WidgetStateColor.resolveWith((s) => cs.primary.withValues(alpha: 0.12)),
+          ),
+        ),
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           _section('Кого показывать', [
@@ -108,7 +134,10 @@ class _FeedFiltersScreenState extends State<FeedFiltersScreen> {
                 _distanceMax = v.end;
               }),
             ),
-            Text('${_distanceMin.round()} – ${_distanceMax.round()} км', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            Text(
+              '${_distanceMin.round()} – ${_distanceMax.round()} км',
+              style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
           ]),
           _section('Возраст', [
             RangeSlider(
@@ -121,7 +150,10 @@ class _FeedFiltersScreenState extends State<FeedFiltersScreen> {
                 _ageMax = v.end;
               }),
             ),
-            Text('${_ageMin.round()} – ${_ageMax.round()}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            Text(
+              '${_ageMin.round()} – ${_ageMax.round()}',
+              style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
           ]),
           _section('Рост', [
             RangeSlider(
@@ -134,7 +166,10 @@ class _FeedFiltersScreenState extends State<FeedFiltersScreen> {
                 _heightMax = v.end;
               }),
             ),
-            Text('${_heightMin.round()} – ${_heightMax.round()} см', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            Text(
+              '${_heightMin.round()} – ${_heightMax.round()} см',
+              style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
           ]),
           _section('Активности', [
             Wrap(
@@ -169,17 +204,26 @@ class _FeedFiltersScreenState extends State<FeedFiltersScreen> {
           ]),
           const SizedBox(height: 24),
         ],
+        ),
       ),
     );
   }
 
   Widget _section(String title, List<Widget> children) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (title.isNotEmpty) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600))),
+          if (title.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                title,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: cs.onSurface),
+              ),
+            ),
           ...children,
         ],
       ),
@@ -187,8 +231,9 @@ class _FeedFiltersScreenState extends State<FeedFiltersScreen> {
   }
 
   Widget _radio(String label, String value) {
+    final cs = Theme.of(context).colorScheme;
     return RadioListTile<String>(
-      title: Text(label, style: const TextStyle(fontSize: 14)),
+      title: Text(label, style: TextStyle(fontSize: 14, color: cs.onSurface)),
       value: value,
       // ignore: deprecated_member_use
       groupValue: _whoToShow,
@@ -200,9 +245,10 @@ class _FeedFiltersScreenState extends State<FeedFiltersScreen> {
   }
 
   Widget _goalRadio(String label, String value) {
+    final cs = Theme.of(context).colorScheme;
     final v = label == 'Дружба' ? 'friendship' : label == 'Общение' ? 'communication' : 'relationship';
     return RadioListTile<String>(
-      title: Text(label, style: const TextStyle(fontSize: 14)),
+      title: Text(label, style: TextStyle(fontSize: 14, color: cs.onSurface)),
       value: v,
       // ignore: deprecated_member_use
       groupValue: _datingGoal,
@@ -214,8 +260,9 @@ class _FeedFiltersScreenState extends State<FeedFiltersScreen> {
   }
 
   Widget _switch(String label, bool value, ValueChanged<bool> onChanged) {
+    final cs = Theme.of(context).colorScheme;
     return SwitchListTile(
-      title: Text(label, style: const TextStyle(fontSize: 14)),
+      title: Text(label, style: TextStyle(fontSize: 14, color: cs.onSurface)),
       value: value,
       onChanged: onChanged,
       contentPadding: EdgeInsets.zero,

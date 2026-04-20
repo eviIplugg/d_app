@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <title>Вход через Telegram</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #f3f3f3;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        #wrap { text-align: center; max-width: 420px; }
+        h1 { color: #333; margin-bottom: 24px; font-size: 1.5rem; }
+        .open-app {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 12px 24px;
+            background: #0088cc;
+            color: #fff;
+            border-radius: 8px;
+            text-decoration: none;
+        }
+        .open-app.secondary { background: #666; margin-top: 8px; }
+        .open-app:hover { filter: brightness(1.05); color: #fff; }
+        .open-app.hidden { display: none; }
+        #telegram-widget-wrap { min-height: 48px; margin: 16px 0; }
+    </style>
+</head>
+<body>
+    <div id="wrap">
+        <h1>Авторизация через Telegram</h1>
+        <p id="status">Нажмите кнопку ниже, чтобы войти.</p>
+        <div id="telegram-widget-wrap"></div>
+        <a id="openApp" class="open-app hidden" href="#">Открыть приложение</a>
+        <a id="openBrowser" class="open-app secondary hidden" href="#">Продолжить в браузере</a>
+    </div>
+    <script>
+        var APP_ORIGIN = 'https://ringme.web.app';
+        var ANDROID_PKG = 'com.ringme.app';
+
+        /** Только явные признаки встроенного WebView (не обычный Safari/Chrome). */
+        function isLikelyInAppWebView() {
+            var ua = navigator.userAgent || '';
+            if (/; wv\)/.test(ua)) return true;
+            if (/FBAN|FBAV|Instagram|Line\//i.test(ua)) return true;
+            return false;
+        }
+
+        function buildWebCallbackUrl(q) {
+            return APP_ORIGIN + '/?tg=1&' + q;
+        }
+
+        /** Android Chrome лучше открывает приложение через intent; fallback — только по кнопке / S.browser_fallback_url. */
+        function buildMobileLaunchUrl(q, webUrl) {
+            var qs = 'tg=1&' + q;
+            var ringmeUrl = 'ringme://telegram/?' + qs;
+            if (/Android/i.test(navigator.userAgent || '')) {
+                return 'intent://telegram/?' + qs + '#Intent;scheme=ringme;package=' + ANDROID_PKG +
+                    ';S.browser_fallback_url=' + encodeURIComponent(webUrl) + ';end';
+            }
+            return ringmeUrl;
+        }
+
+        function redirectToTelegramConsumer(q) {
+            var webUrl = buildWebCallbackUrl(q);
+            var openEl = document.getElementById('openApp');
+            var browserEl = document.getElementById('openBrowser');
+            var statusEl = document.getElementById('status');
+
+            browserEl.href = webUrl;
+            browserEl.classList.remove('hidden');
+
+            // Во встроенном WebView нельзя вести на /?tg=1 — подтянется весь Flutter (index.html).
+            // Только custom scheme: натив перехватывает в NavigationDelegate, SPA не грузится.
+            if (isLikelyInAppWebView()) {
+                var qsWv = 'tg=1&' + q;
+                var appOnly = 'ringme://telegram/?' + qsWv;
+                statusEl.textContent = 'Возвращаем в приложение…';
+                openEl.href = webUrl;
+                openEl.textContent = 'Открыть в браузере';
+                openEl.classList.remove('hidden');
+                window.location.href = appOnly;
+                return;
+            }
+
+            if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '')) {
+                statusEl.textContent = 'Открываем приложение Ring me…';
+                var launch = buildMobileLaunchUrl(q, webUrl);
+                openEl.href = launch;
+                openEl.textContent = 'Открыть в приложении';
+                openEl.classList.remove('hidden');
+                window.location.href = launch;
+                return;
+            }
+
+            statusEl.textContent = 'Перенаправление…';
+            openEl.href = webUrl;
+            openEl.textContent = 'Продолжить';
+            openEl.classList.remove('hidden');
+            window.location.href = webUrl;
+        }
+
+        window.onTelegramAuth = function(user) {
+            var parts = [];
+            for (var k in user) {
+                if (Object.prototype.hasOwnProperty.call(user, k)) {
+                    parts.push(k + '=' + encodeURIComponent(String(user[k])));
+                }
+            }
+            var q = parts.join('&');
+            redirectToTelegramConsumer(q);
+        };
+    </script>
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var token = params.get('token');
+            var telegramId = params.get('telegram_id');
+            var first = params.get('first_name') || '';
+            var last = params.get('last_name') || '';
+            var username = params.get('username') || '';
+            var id = params.get('id') || telegramId || '';
+
+            if (token || id) {
+                var q = 'id=' + encodeURIComponent(id) + '&first_name=' + encodeURIComponent(first) + '&last_name=' + encodeURIComponent(last) + '&username=' + encodeURIComponent(username);
+                var ad = params.get('auth_date');
+                var h = params.get('hash');
+                var ph = params.get('photo_url');
+                if (ad) q += '&auth_date=' + encodeURIComponent(ad);
+                if (h) q += '&hash=' + encodeURIComponent(h);
+                if (ph) q += '&photo_url=' + encodeURIComponent(ph);
+                if (token) q += '&token=' + encodeURIComponent(token);
+                redirectToTelegramConsumer(q);
+                return;
+            }
+
+            var wrap = document.getElementById('telegram-widget-wrap');
+            var s = document.createElement('script');
+            s.src = 'https://telegram.org/js/telegram-widget.js?22';
+            s.setAttribute('data-telegram-login', 'ringmeauth_bot');
+            s.setAttribute('data-size', 'large');
+            s.setAttribute('data-onauth', 'onTelegramAuth(user)');
+            s.setAttribute('data-request-access', 'write');
+            s.async = true;
+            wrap.appendChild(s);
+        })();
+    </script>
+</body>
+</html>

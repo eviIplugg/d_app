@@ -48,8 +48,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF111111) : Colors.white;
+    final titleColor = isDark ? Colors.white : _darkRed;
+    final textColor = isDark ? Colors.white70 : _grayText;
+    final dotInactive = isDark ? const Color(0xFF4A4A4A) : _inactiveDot;
+    final buttonBg = isDark ? const Color(0xFF9B3238) : _darkRed;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -68,7 +74,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       onPressed: () => Navigator.pop(context),
                       icon: Icon(
                         Icons.arrow_back_ios,
-                        color: _darkRed,
+                        color: titleColor,
                         size: 24,
                       ),
                       padding: EdgeInsets.zero,
@@ -100,12 +106,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 position: _slideAnimation,
                 child: FadeTransition(
                   opacity: _fadeAnimation,
-                  child: const Text(
+                  child: Text(
                     'Культурное совпадение',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: _darkRed,
+                      color: titleColor,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -123,7 +129,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       'Найди идеальное культурное совпадение и подбирай людей со схожими интересами, ценностями и образом жизни',
                       style: TextStyle(
                         fontSize: 15,
-                        color: _grayText,
+                        color: textColor,
                         height: 1.5,
                       ),
                       textAlign: TextAlign.center,
@@ -136,11 +142,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildDot(active: true),
+                  _buildDot(active: true, isDark: isDark, dotInactive: dotInactive),
                   const SizedBox(width: 8),
-                  _buildDot(active: false),
+                  _buildDot(active: false, isDark: isDark, dotInactive: dotInactive),
                   const SizedBox(width: 8),
-                  _buildDot(active: false),
+                  _buildDot(active: false, isDark: isDark, dotInactive: dotInactive),
                 ],
               ),
               const SizedBox(height: 32),
@@ -164,7 +170,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _darkRed,
+                          backgroundColor: buttonBg,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -190,13 +196,17 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  Widget _buildDot({required bool active}) {
+  Widget _buildDot({
+    required bool active,
+    required bool isDark,
+    required Color dotInactive,
+  }) {
     return Container(
       width: 8,
       height: 8,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: active ? _darkRed : _inactiveDot,
+        color: active ? (isDark ? const Color(0xFFB73A41) : _darkRed) : dotInactive,
       ),
     );
   }

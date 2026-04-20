@@ -81,8 +81,13 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF111111) : const Color(0xFFF3F3F3);
+    final fg = isDark ? Colors.white : const Color(0xFF333333);
+    final fieldBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final hint = isDark ? Colors.white38 : Colors.grey.shade400;
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: bg,
       body: SafeArea(
         child: Stack(
           children: [
@@ -90,7 +95,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
               top: 16,
               left: 16,
               child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF333333)),
+                icon: Icon(Icons.arrow_back, color: fg),
                 onPressed: () {
                   if (Navigator.of(context).canPop()) Navigator.of(context).pop();
                 },
@@ -104,12 +109,12 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         'Введите номер телефона',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF333333),
+                          color: fg,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -124,17 +129,26 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                         validator: _validatePhone,
                         decoration: InputDecoration(
                           hintText: '+7 (999) 123-45-67',
-                          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 16),
+                          hintStyle: TextStyle(color: hint, fontSize: 16),
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: fieldBg,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.transparent),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.transparent),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF81262B), width: 1.3),
+                          ),
                           errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red)),
                           focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red)),
                         ),
-                        style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
+                        style: TextStyle(fontSize: 16, color: fg),
                       ),
                     ],
                   ),
@@ -184,7 +198,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                       );
                     },
                     style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF666666),
+                      foregroundColor: isDark ? Colors.white70 : const Color(0xFF666666),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: const Text('Пропустить', style: TextStyle(fontSize: 16)),

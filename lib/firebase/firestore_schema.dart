@@ -172,6 +172,24 @@ const String kPostCommentsSubcollection = 'comments';
 const String kCommentAuthorId = 'authorId';
 const String kCommentText = 'text';
 const String kCommentCreatedAt = 'createdAt'; // Timestamp
+const String kCommentLikeCount = 'likeCount';
+const String kCommentLikedBy = 'likedBy'; // List<String>
+
+/// Подколлекция: users/{uid}/likeNotifications/{id}
+const String kLikeNotificationsSubcollection = 'likeNotifications';
+const String kNotifType = 'type'; // 'post_like' | 'comment_like'
+const String kNotifActorId = 'actorId';
+const String kNotifPostId = 'postId';
+const String kNotifCommentId = 'commentId';
+const String kNotifRead = 'read';
+const String kNotifCreatedAt = 'createdAt';
+
+/// Жалобы на посты: postReports/{id}
+const String kPostReportsCollection = 'postReports';
+const String kReportPostId = 'postId';
+const String kReportReporterId = 'reporterId';
+const String kReportReason = 'reason';
+const String kReportCreatedAt = 'createdAt';
 
 // ============== STORIES (истории 24ч) ==============
 const String kStoryAuthorId = 'authorId';

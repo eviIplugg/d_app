@@ -120,6 +120,9 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF111111) : const Color(0xFFF3F3F3);
+    final unselected = isDark ? Colors.white38 : Colors.grey.shade400;
     final now = DateTime.now();
     final currentYear = now.year;
     final minYear = currentYear - 100;
@@ -132,7 +135,7 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
     final daysInMonth = _getDaysInMonth(selectedYear, selectedMonth);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -146,12 +149,12 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Title
-                    const Text(
+                    Text(
                       'Дата рождения',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF81262B),
+                        color: isDark ? Colors.white : const Color(0xFF81262B),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -176,7 +179,7 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
                                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                                     color: isSelected 
                                         ? const Color(0xFF81262B) 
-                                        : Colors.grey.shade400,
+                                        : unselected,
                                   ),
                                 );
                               },
@@ -204,7 +207,7 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
                                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                                     color: isSelected 
                                         ? const Color(0xFF81262B) 
-                                        : Colors.grey.shade400,
+                                        : unselected,
                                   ),
                                 );
                               },
@@ -231,7 +234,7 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
                                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                                     color: isSelected 
                                         ? const Color(0xFF81262B) 
-                                        : Colors.grey.shade400,
+                                        : unselected,
                                   ),
                                 );
                               },
@@ -250,10 +253,10 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
                     // Age display
                     Text(
                       '${_calculateAge(_selectedDate)} лет',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF81262B),
+                        color: isDark ? Colors.white : const Color(0xFF81262B),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -309,6 +312,7 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
     required Widget Function(BuildContext, int) builder,
     required ValueChanged<int> onSelectedItemChanged,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Stack(
       children: [
         // Выделение выбранного элемента
@@ -319,10 +323,10 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
           height: 50,
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.grey.shade200,
+              color: isDark ? const Color(0xFF242424) : Colors.grey.shade200,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Colors.grey.shade300,
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
                 width: 1,
               ),
             ),
@@ -345,16 +349,15 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
   }
 
   Widget _buildHeader({required int step, required int totalSteps}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final text = isDark ? Colors.white : const Color(0xFF333333);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Row(
         children: [
           // Back button
           IconButton(
-            icon: const Icon(
-              Icons.arrow_back,
-              color: Color(0xFF333333),
-            ),
+            icon: Icon(Icons.arrow_back, color: text),
             onPressed: () {
               if (Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
@@ -366,7 +369,7 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
             child: Container(
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
               ),
               child: FractionallySizedBox(
@@ -386,10 +389,10 @@ class _BirthdateScreenState extends State<BirthdateScreen> {
             padding: const EdgeInsets.only(left: 16.0),
             child: Text(
               '$step/$totalSteps',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF333333),
+                color: text,
               ),
             ),
           ),

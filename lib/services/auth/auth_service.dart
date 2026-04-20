@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:vkid_flutter_sdk/library_vkid.dart' hide User;
 import '../../firebase/firestore_schema.dart';
 
-/// Сервис аутентификации: номер телефона и VK ID.
+/// Сервис аутентификации: номер телефона и Telegram.
 class AuthService {
   AuthService._();
   static final AuthService _instance = AuthService._();
@@ -17,6 +17,17 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
   String? get currentUserId => _auth.currentUser?.uid;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  /// На web сессия IndexedDB поднимается не мгновенно — коротко ждём, чтобы не сбрасывать в Welcome.
+  Future<User?> waitForInitialUserOnWeb() async {
+    if (!kIsWeb) return _auth.currentUser;
+    for (var i = 0; i < 15; i++) {
+      final u = _auth.currentUser;
+      if (u != null) return u;
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+    }
+    return _auth.currentUser;
+  }
 
   /// Роль текущего пользователя: 'user' | 'organizer' | 'admin'. По умолчанию 'user'.
   Future<String> getUserRole(String uid) async {
@@ -224,38 +235,6 @@ class AuthService {
     return _auth.signInWithCredential(credential);
   }
 
-  /// Вызвать при открытии экрана выбора способа входа (для предзагрузки VK ID SDK).
-  Future<void> ensureVKInitialized() async {
-    await VKID.getInstance();
-  }
-
-  /// Вход через VK ID (официальный SDK vkid_flutter_sdk).
-  Future<UserCredential?> signInWithVK() async {
-    final vkid = await VKID.getInstance();
-    final completer = Completer<AuthData>();
-    vkid.authorize(
-      onAuth: (AuthData data) {
-        if (!completer.isCompleted) completer.complete(data);
-      },
-      onError: (AuthError error) {
-        if (!completer.isCompleted) {
-          final msg = switch (error) {
-            AuthOtherError(description: final d) => d.isNotEmpty ? d : 'Ошибка VK ID',
-            _ => 'Ошибка VK ID',
-          };
-          completer.completeError(Exception(msg));
-        }
-      },
-      params: const AuthParams(),
-    );
-    final authData = await completer.future;
-    final credential = OAuthProvider('vk.com').credential(
-      accessToken: authData.token,
-      idToken: authData.idToken,
-    );
-    return _auth.signInWithCredential(credential);
-  }
-
   /// Вход через Telegram (виджет или данные из Telegram).
   /// Только создаёт анонимную сессию и возвращает uid. Проверка по telegram id и сохранение — в экране.
   Future<String?> signInAnonymouslyForTelegram() async {
@@ -268,6 +247,24 @@ class AuthService {
     final cred = await _auth.signInWithCustomToken(token);
     clearAllProfileCache();
     return cred;
+  }
+
+  /// Получить ссылку для токен-входа в CRM.
+  /// Возвращает URL вида https://dating-app-34f38.web.app/?crm_token=...
+  Future<String> issueCrmLoginLink() async {
+    final functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+    final callable = functions.httpsCallable('issueCrmLoginToken');
+    final result = await callable.call();
+    final raw = result.data;
+    if (raw is! Map) {
+      throw FirebaseFunctionsException(code: 'data-loss', message: 'Invalid issueCrmLoginToken response');
+    }
+    final data = Map<String, dynamic>.from(raw);
+    final url = data['crmUrl']?.toString() ?? '';
+    if (url.isEmpty) {
+      throw FirebaseFunctionsException(code: 'data-loss', message: 'crmUrl is empty');
+    }
+    return url;
   }
 
   /// Сохранить/обновить профиль после входа через Telegram (имя и telegramUserId).
@@ -330,10 +327,6 @@ class AuthService {
 
   /// Выход.
   Future<void> signOut() async {
-    try {
-      final vkid = await VKID.getInstance();
-      vkid.logout();
-    } catch (_) {}
     _profileCache.clear();
     _webPhoneConfirmation = null;
     await _auth.signOut();

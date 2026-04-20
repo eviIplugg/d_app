@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.telegramSignIn = exports.adminDeleteUsers = void 0;
+exports.issueCrmLoginToken = exports.telegramSignIn = exports.adminDeleteUsers = void 0;
 const crypto = __importStar(require("crypto"));
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
@@ -226,4 +226,25 @@ exports.telegramSignIn = (0, https_1.onCall)({
     }
     const customToken = await admin.auth().createCustomToken(uid);
     return { customToken };
+});
+/**
+ * Выдаёт custom token для входа в CRM на другом origin (dating-app-34f38.web.app).
+ * Использование: авторизованный админ в основном приложении запрашивает ссылку и открывает CRM.
+ */
+exports.issueCrmLoginToken = (0, https_1.onCall)({
+    region: 'us-central1',
+    maxInstances: 20,
+}, async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+        throw new https_1.HttpsError('unauthenticated', 'Auth required');
+    }
+    const userSnap = await db.collection('users').doc(uid).get();
+    const role = userSnap.data()?.role;
+    if (role !== 'admin') {
+        throw new https_1.HttpsError('permission-denied', 'Admin only');
+    }
+    const customToken = await admin.auth().createCustomToken(uid, { crm: true });
+    const crmUrl = `https://dating-app-34f38.web.app/?crm_token=${encodeURIComponent(customToken)}`;
+    return { customToken, crmUrl };
 });

@@ -12,11 +12,13 @@ class SwipeableFeedCard extends StatefulWidget {
     required this.user,
     required this.onSwipe,
     required this.onOpenProfile,
+    required this.onOpenPhoto,
   });
 
   final FeedUser user;
   final void Function(bool isLike) onSwipe;
   final VoidCallback onOpenProfile;
+  final void Function(int index) onOpenPhoto;
 
   @override
   State<SwipeableFeedCard> createState() => _SwipeableFeedCardState();
@@ -186,7 +188,7 @@ class _SwipeableFeedCardState extends State<SwipeableFeedCard> with SingleTicker
                 child: FeedCard(
                   user: widget.user,
                   onTapArrow: widget.onOpenProfile,
-                  onTapPhoto: widget.onOpenProfile,
+                  onTapPhoto: widget.onOpenPhoto,
                 ),
               ),
             ),

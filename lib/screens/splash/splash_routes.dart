@@ -1,17 +1,19 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../../services/auth/auth_service.dart';
 import '../../firebase/firestore_schema.dart';
+import '../../models/profile_draft.dart';
 import '../../services/blacklist_service.dart';
 import '../welcome/welcome_screen.dart';
+import '../profile_create/name_screen.dart';
 import '../../navigation/post_auth_home.dart';
 
-/// После сплеша: если пользователь уже зарегистрирован — сразу лента (без «Добро пожаловать»).
-/// Экран «Добро пожаловать, Имя» показывается только после повторной авторизации (экраны входа).
-/// Иначе — Welcome → регистрация → заполнение профиля.
+/// После сплеша: полный профиль → лента; иначе (в т.ч. после Telegram) → заполнение анкеты.
 Future<void> navigateAfterSplash(BuildContext context) async {
   if (!context.mounted) return;
   final auth = AuthService();
-  final user = auth.currentUser;
+  final user = kIsWeb ? await auth.waitForInitialUserOnWeb() : auth.currentUser;
+  if (!context.mounted) return;
   if (user == null) {
     Navigator.pushReplacement(
       context,
@@ -54,23 +56,22 @@ Future<void> navigateAfterSplash(BuildContext context) async {
         context,
         MaterialPageRoute<void>(builder: (context) => PostAuthHome.shell),
       );
-    } else {
-      final hasName = profile != null &&
-          profile[kUserName] != null &&
-          (profile[kUserName] is String) &&
-          (profile[kUserName] as String).trim().isNotEmpty;
-      if (hasName) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute<void>(builder: (context) => PostAuthHome.shell),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-        );
-      }
+      return;
     }
+    if (auth.hasProfileWithName(profile)) {
+      final name = profile?[kUserName]?.toString().trim() ?? '';
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<void>(
+          builder: (context) => NameScreen(draft: ProfileDraft(name: name)),
+        ),
+      );
+      return;
+    }
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+    );
   } catch (_) {
     if (!context.mounted) return;
     Navigator.pushReplacement(

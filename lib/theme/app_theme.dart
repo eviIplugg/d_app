@@ -134,9 +134,46 @@ class AppTheme {
         elevation: 0,
         titleTextStyle: textTheme.titleMedium,
         iconTheme: const IconThemeData(color: Colors.white),
+        foregroundColor: Colors.white,
       ),
       textTheme: textTheme,
       cardTheme: CardThemeData(color: cardDark, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      dividerColor: Colors.white24,
+      dialogTheme: DialogThemeData(backgroundColor: cardDark, surfaceTintColor: Colors.transparent),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: cardDark,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: cardDark,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: const Color(0xFF3D3D3D),
+        contentTextStyle: const TextStyle(color: Colors.white),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      listTileTheme: ListTileThemeData(
+        iconColor: Colors.white70,
+        textColor: Colors.white,
+        titleTextStyle: textTheme.bodyLarge,
+        subtitleTextStyle: textTheme.bodySmall,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF383838),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white24),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primaryLight, width: 1.5),
+        ),
+        labelStyle: const TextStyle(color: Colors.white70),
+        hintStyle: const TextStyle(color: Colors.white38),
+      ),
+      iconTheme: const IconThemeData(color: Colors.white70),
+      popupMenuTheme: PopupMenuThemeData(color: cardDark, surfaceTintColor: Colors.transparent),
     );
   }
 }

@@ -12,6 +12,12 @@ import 'auth_service.dart';
 Future<void> applyTelegramWebRedirectIfPresent() async {
   if (!kIsWeb) return;
 
+  final host = Uri.base.host;
+  // Коллбэк Telegram обрабатываем только на основном приложении (consumer), не на CRM.
+  if (host.contains('dating-app-34f38') && !host.contains('ringme')) {
+    return;
+  }
+
   final params = Uri.base.queryParameters;
   if (params['tg'] != '1') return;
   final id = params['id'];

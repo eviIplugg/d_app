@@ -4,23 +4,34 @@ import '../../../firebase/firestore_schema.dart';
 import '../../../services/auth/auth_service.dart';
 import '../../../services/post_comment_service.dart';
 
-/// Отдельное окно (bottom sheet) со списком комментариев к посту.
-Future<void> showPostCommentsSheet(BuildContext context, String postId) {
+/// Окно со списком комментариев к посту. [scrollToCommentId] — прокрутка к комментарию (например из уведомления).
+Future<void> showPostCommentsSheet(
+  BuildContext context,
+  String postId, {
+  String? scrollToCommentId,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.white,
+    backgroundColor: Theme.of(context).colorScheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
-    builder: (ctx) => _PostCommentsBody(postId: postId),
+    builder: (ctx) => _PostCommentsBody(
+      postId: postId,
+      scrollToCommentId: scrollToCommentId,
+    ),
   );
 }
 
 class _PostCommentsBody extends StatefulWidget {
-  const _PostCommentsBody({required this.postId});
+  const _PostCommentsBody({
+    required this.postId,
+    this.scrollToCommentId,
+  });
 
   final String postId;
+  final String? scrollToCommentId;
 
   @override
   State<_PostCommentsBody> createState() => _PostCommentsBodyState();
@@ -32,11 +43,15 @@ class _PostCommentsBodyState extends State<_PostCommentsBody> {
   final TextEditingController _controller = TextEditingController();
   final Map<String, String> _authorNames = {};
   final Set<String> _authorLoadsPending = {};
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, GlobalKey> _commentKeys = {};
   bool _sending = false;
+  bool _didScrollTo = false;
 
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -53,6 +68,22 @@ class _PostCommentsBodyState extends State<_PostCommentsBody> {
         });
       });
     }
+  }
+
+  void _tryScrollToComment(List<PostComment> list) {
+    final id = widget.scrollToCommentId;
+    if (id == null || id.isEmpty || _didScrollTo) return;
+    final idx = list.indexWhere((c) => c.id == id);
+    if (idx < 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final key = _commentKeys[id];
+      final ctx = key?.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(ctx, alignment: 0.15, duration: const Duration(milliseconds: 300));
+      }
+      _didScrollTo = true;
+    });
   }
 
   Future<void> _send() async {
@@ -73,9 +104,24 @@ class _PostCommentsBodyState extends State<_PostCommentsBody> {
     }
   }
 
+  Future<void> _toggleCommentLike(PostComment c) async {
+    try {
+      await _comments.toggleCommentLike(widget.postId, c.id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final uid = _auth.currentUserId;
+
     return Padding(
       padding: EdgeInsets.only(bottom: bottom),
       child: SafeArea(
@@ -88,10 +134,10 @@ class _PostCommentsBodyState extends State<_PostCommentsBody> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
                 child: Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Комментарии',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
                       ),
                     ),
                     IconButton(
@@ -111,43 +157,37 @@ class _PostCommentsBodyState extends State<_PostCommentsBody> {
                     }
                     final list = snap.data ?? [];
                     _scheduleAuthorNames(list.map((c) => c.authorId));
+                    _tryScrollToComment(list);
                     if (list.isEmpty && snap.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: Color(0xFF81262B)));
+                      return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
                     }
                     if (list.isEmpty) {
                       return Center(
-                        child: Text('Пока нет комментариев', style: TextStyle(color: Colors.grey.shade600)),
+                        child: Text(
+                          'Пока нет комментариев',
+                          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                        ),
                       );
                     }
                     return ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       itemCount: list.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 10),
+                      separatorBuilder: (context, index) => const SizedBox(height: 8),
                       itemBuilder: (context, i) {
                         final c = list[i];
+                        _commentKeys.putIfAbsent(c.id, GlobalKey.new);
                         final name = _authorNames[c.authorId] ?? '…';
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: RichText(
-                                text: TextSpan(
-                                  style: TextStyle(fontSize: 14, color: Colors.grey.shade900, height: 1.35),
-                                  children: [
-                                    TextSpan(
-                                      text: '$name ',
-                                      style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF333333)),
-                                    ),
-                                    TextSpan(text: c.text),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Text(
-                              _formatTime(c.createdAt),
-                              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                            ),
-                          ],
+                        final liked = uid != null && c.isLikedBy(uid);
+                        return _CommentRow(
+                          key: _commentKeys[c.id],
+                          name: name,
+                          text: c.text,
+                          time: _formatTime(c.createdAt),
+                          likeCount: c.likeCount,
+                          liked: liked,
+                          onLike: () => _toggleCommentLike(c),
+                          theme: theme,
                         );
                       },
                     );
@@ -169,7 +209,7 @@ class _PostCommentsBodyState extends State<_PostCommentsBody> {
                         decoration: InputDecoration(
                           hintText: 'Комментарий…',
                           filled: true,
-                          fillColor: Colors.grey.shade100,
+                          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
@@ -181,7 +221,7 @@ class _PostCommentsBodyState extends State<_PostCommentsBody> {
                     const SizedBox(width: 8),
                     IconButton(
                       onPressed: _sending ? null : _send,
-                      style: IconButton.styleFrom(backgroundColor: const Color(0xFF81262B)),
+                      style: IconButton.styleFrom(backgroundColor: theme.colorScheme.primary),
                       icon: _sending
                           ? const SizedBox(
                               width: 22,
@@ -206,5 +246,80 @@ class _PostCommentsBodyState extends State<_PostCommentsBody> {
       return '${t.day.toString().padLeft(2, '0')}.${t.month.toString().padLeft(2, '0')}';
     }
     return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _CommentRow extends StatelessWidget {
+  const _CommentRow({
+    super.key,
+    required this.name,
+    required this.text,
+    required this.time,
+    required this.likeCount,
+    required this.liked,
+    required this.onLike,
+    required this.theme,
+  });
+
+  final String name;
+  final String text;
+  final String time;
+  final int likeCount;
+  final bool liked;
+  final VoidCallback onLike;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface, height: 1.35),
+              children: [
+                TextSpan(
+                  text: '$name ',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+                ),
+                TextSpan(text: text),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(time, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            InkWell(
+              onTap: onLike,
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      liked ? Icons.favorite : Icons.favorite_border,
+                      size: 18,
+                      color: liked ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    if (likeCount > 0) ...[
+                      const SizedBox(width: 2),
+                      Text(
+                        '$likeCount',
+                        style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }

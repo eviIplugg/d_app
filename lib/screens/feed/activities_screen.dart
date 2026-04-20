@@ -40,26 +40,28 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Активности',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF333333),
+            color: theme.colorScheme.onSurface,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.tune, color: Color(0xFF333333)),
+            icon: Icon(Icons.tune, color: theme.colorScheme.onSurface),
             onPressed: () {},
           ),
           IconButton(
-            icon: const Icon(Icons.search, color: Color(0xFF333333)),
+            icon: Icon(Icons.search, color: theme.colorScheme.onSurface),
             onPressed: () {},
           ),
         ],
@@ -67,7 +69,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
       body: Column(
         children: [
           Container(
-            color: Colors.white,
+            color: theme.colorScheme.surface,
             child: Column(
               children: [
                 Padding(
@@ -88,11 +90,11 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                               style: ButtonStyle(
                                 backgroundColor: WidgetStateProperty.resolveWith((states) {
                                   if (states.contains(WidgetState.selected)) return const Color(0xFF81262B);
-                                  return Colors.grey.shade200;
+                                  return isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade200;
                                 }),
                                 foregroundColor: WidgetStateProperty.resolveWith((states) {
                                   if (states.contains(WidgetState.selected)) return Colors.white;
-                                  return Colors.grey.shade700;
+                                  return isDark ? Colors.white70 : Colors.grey.shade700;
                                 }),
                               ),
                             ),
@@ -109,9 +111,9 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                     controller: _searchController,
                     decoration: InputDecoration(
                       hintText: 'Поиск',
-                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                      prefixIcon: Icon(Icons.search, color: isDark ? Colors.white54 : Colors.grey),
                       filled: true,
-                      fillColor: Colors.grey.shade100,
+                      fillColor: isDark ? const Color(0xFF2B2B2B) : Colors.grey.shade100,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,

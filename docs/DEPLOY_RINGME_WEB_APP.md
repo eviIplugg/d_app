@@ -1,65 +1,59 @@
-# Деплой на https://ringme.web.app
+# Веб-хостинг Firebase (проект `dating-app-34f38`)
 
-Страница **Site Not Found** в Firebase значит: для проекта **ringme** ещё не было успешного деплоя **или** в `build/web` не было файлов.
+Два сайта в одном проекте:
 
-## 1. Проверьте проект в консоли
+| URL | Содержимое | Hosting target |
+|-----|------------|----------------|
+| **https://auth-ringme.web.app** | Основное приложение для web (`lib/main.dart`) и страница виджета Telegram **`/telegram.html`** (копируется из `hosting/telegram.html` при деплое) | `consumer` |
+| **https://dating-app-34f38.web.app** | CRM (`lib/main_crm_web.dart`) | `crm` |
 
-1. Откройте [Firebase Console](https://console.firebase.google.com) → проект с ID **`ringme`** (именно он даёт адрес `ringme.web.app`).
-2. Слева **Build → Hosting** — должен быть сайт по умолчанию.
+В **Authentication → Settings → Authorized domains** добавьте: `auth-ringme.web.app`, `dating-app-34f38.web.app`.
 
-Если проекта `ringme` нет — создайте или используйте тот проект, к которому привязан нужный домен.
+Домен бота Telegram (`/setdomain` в BotFather): **auth-ringme.web.app** — см. `lib/config/telegram_config.dart`.
 
-## 2. Войдите в CLI и выберите проект
+## Одна команда: всё веб + Hosting
 
-```bash
-cd c:\Users\User\d_app
-firebase login
-firebase use ringme
-```
-
-Если проекта нет в списке: `firebase use --add` и выберите **ringme**.
-
-## 3. Соберите веб-приложение (обязательно до deploy)
+Из корня репозитория (нужны [Flutter](https://flutter.dev) и [Firebase CLI](https://firebase.google.com/docs/cli#install_the_firebase_cli) или `npx firebase-tools`):
 
 ```bash
-flutter build web --release
+./scripts/deploy_web_all.sh
 ```
 
-Убедитесь, что появился файл **`build/web/index.html`**. Если папки нет — деплой будет «пустым» и снова покажется Site Not Found.
+Скрипт выполняет `flutter pub get`, собирает CRM в `build/web_crm`, приложение в `build/web`, копирует `hosting/telegram.html` → `build/web/telegram.html`, затем `firebase deploy --only hosting` (оба сайта: `crm`, `consumer`).
 
-**Только CRM-админка:**
+Полный деплой проекта (правила Firestore, Storage, Functions, hosting):
 
 ```bash
-flutter build web -t lib/main_crm_web.dart --release
+FULL=1 ./scripts/deploy_web_all.sh
 ```
-
-## 4. Задеплойте Hosting на ringme
-
-В корне проекта лежит **`firebase.ringme.json`** — конфиг без привязки к `dating-app-34f38`, с `public: build/web`.
-
-```bash
-firebase deploy --only hosting --project ringme --config firebase.ringme.json
-```
-
-Если ваша версия Firebase CLI **не поддерживает** `--config`, временно скопируйте файл:
-
-```powershell
-Copy-Item firebase.json firebase.json.bak
-Copy-Item firebase.ringme.json firebase.json
-firebase deploy --only hosting --project ringme
-Copy-Item firebase.json.bak firebase.json
-```
-
-(Во временном `firebase.json` для ringme должен быть один блок `hosting` с `"public": "build/web"`, без чужих `target`.)
-
-## 5. После деплоя
-
-Через 1–2 минуты откройте **https://ringme.web.app** — должна открыться ваша сборка, а не страница Firebase «Site Not Found».
-
-## 6. Авторизация (Firebase Auth)
-
-В **Authentication → Settings → Authorized domains** добавьте **`ringme.web.app`**.
 
 ---
 
-**Почему раньше не работало:** в `.firebaserc` по умолчанию указан проект **`dating-app-34f38`**, а деплой шёл туда — сайт **`ringme.web.app`** при этом оставался пустым.
+## Пошагово (вручную)
+
+Проект CLI: `firebase use dating-app-34f38` (или `default`).
+
+### 1. CRM
+
+```bash
+flutter build web -t lib/main_crm_web.dart --release --output=build/web_crm
+firebase deploy --only hosting:crm
+```
+
+### 2. Основное приложение + Telegram (`/telegram.html`)
+
+```bash
+flutter build web --release
+cp hosting/telegram.html build/web/telegram.html
+firebase deploy --only hosting:consumer
+```
+
+Сборки **CRM** и **consumer** используют разные папки (`build/web_crm` и `build/web`), их можно деплоить в любом порядке без перезаписи друг друга.
+
+## Редирект после Telegram
+
+Файл `hosting/telegram.html` после авторизации перенаправляет на **https://auth-ringme.web.app/?tg=1&…** — там же лежит сборка **consumer** (`main.dart`).
+
+---
+
+Устаревший вариант с отдельным таргетом `landing` и третьим сайтом не используется: виджет и приложение на одном хосте **auth-ringme**.

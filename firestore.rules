@@ -13,6 +13,12 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == userId;
       allow update, delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
+
+      match /likeNotifications/{notifId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.resource.data.actorId == request.auth.uid;
+        allow update, delete: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // ---------- SWIPES ----------
@@ -79,8 +85,18 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if request.auth != null;
         allow create: if request.auth != null && request.resource.data.authorId == request.auth.uid;
-        allow update, delete: if request.auth != null && resource.data.authorId == request.auth.uid;
+        allow update: if request.auth != null && (
+          resource.data.authorId == request.auth.uid ||
+          request.resource.data.diff(resource.data).changedKeys().hasOnly(['likeCount', 'likedBy'])
+        );
+        allow delete: if request.auth != null && resource.data.authorId == request.auth.uid;
       }
+    }
+
+    match /postReports/{reportId} {
+      allow read: if request.auth != null && resource.data.reporterId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.reporterId == request.auth.uid;
+      allow update, delete: if false;
     }
 
     // ---------- STORIES (24 часа) ----------

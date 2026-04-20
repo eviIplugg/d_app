@@ -29,8 +29,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   bool _loading = false;
   String? _error;
 
-  static const Color _accent = Color(0xFF81262B);
-
   Future<void> _pickImages() async {
     final picker = ImagePicker();
     final files = await picker.pickMultiImage(imageQuality: 85);
@@ -101,25 +99,37 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final fieldFill = cs.surfaceContainerHighest;
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cs.surface,
+        foregroundColor: cs.onSurface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Color(0xFF333333)),
+          icon: Icon(Icons.close, color: cs.onSurface),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
+        title: Text(
           'Новый пост',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: cs.onSurface,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: _loading ? null : _publish,
             child: _loading
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: _accent))
-                : const Text('Опубликовать', style: TextStyle(fontWeight: FontWeight.w600, color: _accent)),
+                ? SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+                  )
+                : Text('Опубликовать', style: TextStyle(fontWeight: FontWeight.w600, color: cs.primary)),
           ),
         ],
       ),
@@ -139,11 +149,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     height: 100,
                     margin: const EdgeInsets.only(right: 12),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
+                      color: cs.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade400),
+                      border: Border.all(color: cs.outlineVariant),
                     ),
-                    child: const Icon(Icons.add_photo_alternate, size: 40, color: Colors.grey),
+                    child: Icon(Icons.add_photo_alternate, size: 40, color: cs.onSurfaceVariant),
                   ),
                 ),
                 ...List.generate(_photoPaths.length, (i) {
@@ -184,11 +194,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           TextField(
             controller: _captionController,
             maxLines: 3,
+            style: TextStyle(color: cs.onSurface),
             decoration: InputDecoration(
               labelText: 'Подпись',
               hintText: 'Текст публикации...',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: fieldFill,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
@@ -201,7 +212,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   label: const Text('Личный пост'),
                   selected: !_isActivity,
                   onSelected: (v) => setState(() => _isActivity = !v),
-                  selectedColor: _accent.withValues(alpha: 0.3),
+                  selectedColor: cs.primary.withValues(alpha: 0.28),
+                  backgroundColor: cs.surfaceContainerHigh,
+                  side: BorderSide(color: cs.outlineVariant),
                 ),
               ),
               const SizedBox(width: 12),
@@ -210,7 +223,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   label: const Text('Активность'),
                   selected: _isActivity,
                   onSelected: (v) => setState(() => _isActivity = v),
-                  selectedColor: _accent.withValues(alpha: 0.3),
+                  selectedColor: cs.primary.withValues(alpha: 0.28),
+                  backgroundColor: cs.surfaceContainerHigh,
+                  side: BorderSide(color: cs.outlineVariant),
                 ),
               ),
             ],
@@ -219,33 +234,36 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: _titleController,
+              style: TextStyle(color: cs.onSurface),
               decoration: InputDecoration(
                 labelText: 'Заголовок',
                 hintText: 'Например: Праздник бразильской кухни',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: fieldFill,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _dateController,
+              style: TextStyle(color: cs.onSurface),
               decoration: InputDecoration(
                 labelText: 'Дата и время',
                 hintText: 'Пт 22:00',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: fieldFill,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _venueController,
+              style: TextStyle(color: cs.onSurface),
               decoration: InputDecoration(
                 labelText: 'Место',
                 hintText: 'Bukowski Grill',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: fieldFill,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -253,47 +271,50 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             CheckboxListTile(
               value: _venueVerified,
               onChanged: (v) => setState(() => _venueVerified = v ?? false),
-              title: const Text('Место верифицировано', style: TextStyle(fontSize: 14)),
+              title: Text('Место верифицировано', style: TextStyle(fontSize: 14, color: cs.onSurface)),
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _priceController,
+              style: TextStyle(color: cs.onSurface),
               decoration: InputDecoration(
                 labelText: 'Цена',
                 hintText: '1500 ₽',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: fieldFill,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _ratingController,
+              style: TextStyle(color: cs.onSurface),
               decoration: InputDecoration(
                 labelText: 'Рейтинг',
                 hintText: '5.0',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: fieldFill,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _tagController,
+              style: TextStyle(color: cs.onSurface),
               decoration: InputDecoration(
                 labelText: 'Тег',
                 hintText: 'Открыто',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: fieldFill,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
           if (_error != null) ...[
             const SizedBox(height: 16),
-            Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 14)),
+            Text(_error!, style: TextStyle(color: cs.error, fontSize: 14)),
           ],
         ],
       ),

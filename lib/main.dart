@@ -1,14 +1,21 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'firebase_options.dart';
+import 'navigation/app_navigator.dart';
 import 'screens/splash/theme_aware_splash.dart';
 import 'services/auth/telegram_web_redirect.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_presence_scope.dart';
+import 'widgets/app_telegram_deep_link_listener.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  if (kIsWeb) {
+    await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+  }
   await applyTelegramWebRedirectIfPresent();
   runApp(const DatingApp());
 }
@@ -19,6 +26,7 @@ class DatingApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: rootNavigatorKey,
       title: 'Ring me.',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme(),
@@ -37,7 +45,9 @@ class DatingApp extends StatelessWidget {
           child: AppPresenceScope(child: child ?? const SizedBox.shrink()),
         );
       },
-      home: const ThemeAwareSplash(),
+      home: const AppTelegramDeepLinkListener(
+        child: ThemeAwareSplash(),
+      ),
     );
   }
 }

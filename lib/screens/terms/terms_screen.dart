@@ -29,8 +29,13 @@ class _TermsScreenState extends State<TermsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF111111) : const Color(0xFFF5F5F5);
+    final titleColor = isDark ? Colors.white : Colors.black87;
+    final cardTextColor = isDark ? Colors.white70 : Colors.black87;
+    final buttonBg = isDark ? const Color(0xFF9B3238) : _darkRed;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -45,18 +50,20 @@ class _TermsScreenState extends State<TermsScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              const Text(
+              Text(
                 'Нужно принять условия\nпользования',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: titleColor,
                   height: 1.3,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 28),
               _CheckRow(
+                isDark: isDark,
+                textColor: cardTextColor,
                 value: _privacyAccepted,
                 onChanged: (v) => setState(() => _privacyAccepted = v ?? false),
                 label: 'Я принимаю ',
@@ -65,6 +72,8 @@ class _TermsScreenState extends State<TermsScreen> {
               ),
               const SizedBox(height: 20),
               _CheckRow(
+                isDark: isDark,
+                textColor: cardTextColor,
                 value: _agreementAccepted,
                 onChanged: (v) => setState(() => _agreementAccepted = v ?? false),
                 label: 'Я принимаю ',
@@ -90,8 +99,8 @@ class _TermsScreenState extends State<TermsScreen> {
                           }
                         : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _darkRed,
-                      disabledBackgroundColor: _darkRed.withValues(alpha: 0.5),
+                      backgroundColor: buttonBg,
+                      disabledBackgroundColor: buttonBg.withValues(alpha: 0.5),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -118,6 +127,8 @@ class _TermsScreenState extends State<TermsScreen> {
 
 class _CheckRow extends StatelessWidget {
   const _CheckRow({
+    required this.isDark,
+    required this.textColor,
     required this.value,
     required this.onChanged,
     required this.label,
@@ -127,6 +138,8 @@ class _CheckRow extends StatelessWidget {
   });
 
   final bool value;
+  final bool isDark;
+  final Color textColor;
   final ValueChanged<bool?> onChanged;
   final String label;
   final String linkText;
@@ -147,6 +160,8 @@ class _CheckRow extends StatelessWidget {
             value: value,
             onChanged: onChanged,
             activeColor: _darkRed,
+            checkColor: Colors.white,
+            side: BorderSide(color: isDark ? Colors.white54 : Colors.black26),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
             ),
@@ -164,17 +179,17 @@ class _CheckRow extends StatelessWidget {
                   height: 1.4,
                 ),
                 children: [
-                  TextSpan(text: label),
+                  TextSpan(text: label, style: TextStyle(color: textColor)),
                   TextSpan(
                     text: linkText,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _darkRed,
                       fontWeight: FontWeight.w600,
                       decoration: TextDecoration.underline,
                     ),
                     recognizer: TapGestureRecognizer()..onTap = onTapLink,
                   ),
-                  TextSpan(text: linkSuffix),
+                  TextSpan(text: linkSuffix, style: TextStyle(color: textColor)),
                 ],
               ),
             ),

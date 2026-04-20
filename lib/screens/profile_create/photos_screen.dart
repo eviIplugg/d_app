@@ -155,8 +155,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF111111) : const Color(0xFFF3F3F3);
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -170,12 +172,12 @@ class _PhotosScreenState extends State<PhotosScreen> {
                   children: [
                     const SizedBox(height: 40),
                     // Title
-                    const Text(
+                    Text(
                       'Добавьте минимум 3 фотографии',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF81262B),
+                        color: isDark ? Colors.white : const Color(0xFF81262B),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -185,7 +187,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
                       'Фото помогают начать историю — добавьте свое, чтобы привлечь внимание.',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey.shade600,
+                        color: isDark ? Colors.white70 : Colors.grey.shade600,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -241,6 +243,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
   }
 
   Widget _buildPhotoPlaceholder(int index) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final photoPath = widget.draft.photos[index];
     final hasPhoto = photoPath != null && photoPath.isNotEmpty;
     final isMainPhoto = index == _mainPhotoIndex;
@@ -249,7 +252,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
       onTap: () => _handlePhotoTap(index),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -272,7 +275,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
                   height: double.infinity,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
-                      color: Colors.grey.shade200,
+                      color: isDark ? const Color(0xFF2B2B2B) : Colors.grey.shade200,
                       child: const Center(
                         child: Icon(
                           Icons.broken_image,
@@ -289,7 +292,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
                 child: Icon(
                   Icons.camera_alt,
                   size: 32,
-                  color: Colors.grey.shade400,
+                  color: isDark ? Colors.white38 : Colors.grey.shade400,
                 ),
               ),
             // Main photo label
@@ -345,13 +348,15 @@ class _PhotosScreenState extends State<PhotosScreen> {
   }
 
   Widget _buildHeader({required int step, required int totalSteps}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final text = isDark ? Colors.white : const Color(0xFF333333);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Row(
         children: [
           // Back button
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF333333)),
+            icon: Icon(Icons.arrow_back, color: text),
             onPressed: () {
               if (Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
@@ -363,7 +368,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
             child: Container(
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
               ),
               child: FractionallySizedBox(
@@ -383,10 +388,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
             padding: const EdgeInsets.only(left: 16.0),
             child: Text(
               '$step/$totalSteps',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF333333),
+                color: text,
               ),
             ),
           ),

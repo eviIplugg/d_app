@@ -74,24 +74,36 @@
 	<string>Нужен доступ, чтобы сохранять фото профиля.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Нужен доступ к геолокации, чтобы показывать места и людей рядом.</string>
-	<key>VK_APP_CLIENT_ID</key>
-	<string>0</string>
-	<key>VK_APP_CLIENT_SECRET</key>
-	<string></string>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>vkauthorize-silent</string>
-	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>auth_callback</string>
+			<string>google_firebase_phone_auth</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>vk0</string>
+				<string>app-1-483363879285-ios-f4305f4f4d9c4ff5307b3c</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google_reversed_client_id</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.483363879285-2e6kle0ulkam340ifknejqihkiqub41v</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>ringme_telegram_callback</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ringme</string>
 			</array>
 		</dict>
 	</array>

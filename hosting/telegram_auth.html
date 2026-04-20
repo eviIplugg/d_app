@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="color-scheme" content="light dark">
+    <title>Telegram авторизация</title>
+    <style>
+        :root {
+            --bg: #f3f3f3;
+            --text: #333333;
+            --subtext: #666666;
+            --btn: #0088cc;
+            --btn-text: #ffffff;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111111;
+                --text: #f1f1f1;
+                --subtext: #b0b0b0;
+                --btn: #1696d5;
+                --btn-text: #ffffff;
+            }
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        .wrap {
+            text-align: center;
+            padding: 24px;
+            width: min(92vw, 420px);
+        }
+        h1 {
+            margin: 0 0 12px;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        p {
+            margin: 0 0 16px;
+            color: var(--subtext);
+        }
+        #telegram-widget-wrap {
+            min-height: 48px;
+        }
+        .btn {
+            display: inline-block;
+            margin-top: 14px;
+            padding: 12px 18px;
+            border-radius: 10px;
+            text-decoration: none;
+            background: var(--btn);
+            color: var(--btn-text);
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>Вход через Telegram</h1>
+        <p id="status">Подтвердите вход в Telegram.</p>
+        <div id="telegram-widget-wrap">
+            <script async src="https://telegram.org/js/telegram-widget.js?22"
+                    data-telegram-login="ringmeauth_bot"
+                    data-size="large"
+                    data-onauth="onTelegramAuth(user)"
+                    data-request-access="write"></script>
+        </div>
+        <a id="openApp" class="btn" href="#" style="display:none;">Открыть приложение</a>
+        <a id="openBot" class="btn" href="https://t.me/ringmeauth_bot" target="_blank" rel="noopener">Открыть бота в Telegram</a>
+    </div>
+
+    <script>
+        var APP_SCHEME = 'ringme://telegram/';
+        var BOT_USERNAME = 'ringmeauth_bot';
+
+        function toQueryFromUser(user) {
+            // id, auth_date, hash обязательны для Cloud Function. Пустые first/last/username не добавляем —
+            // иначе в строке будет first_name=… с пустым значением и HMAC на сервере не совпадёт с Telegram.
+            var q = 'tg=1&id=' + encodeURIComponent(user.id || '')
+                + '&auth_date=' + encodeURIComponent(String(user.auth_date || ''))
+                + '&hash=' + encodeURIComponent(user.hash || '');
+            if (user.first_name) q += '&first_name=' + encodeURIComponent(user.first_name);
+            if (user.last_name) q += '&last_name=' + encodeURIComponent(user.last_name);
+            if (user.username) q += '&username=' + encodeURIComponent(user.username);
+            if (user.photo_url) q += '&photo_url=' + encodeURIComponent(user.photo_url);
+            return q;
+        }
+
+        function redirectToApp(q) {
+            var deepLink = APP_SCHEME + '?' + q;
+            var status = document.getElementById('status');
+            var openApp = document.getElementById('openApp');
+            status.textContent = 'Открываем приложение…';
+            openApp.style.display = 'inline-block';
+            openApp.href = deepLink;
+            window.location.href = deepLink;
+        }
+
+        window.onTelegramAuth = function(user) {
+            redirectToApp(toQueryFromUser(user));
+        };
+
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var token = params.get('token');
+            var telegramId = params.get('telegram_id');
+            var first = params.get('first_name') || '';
+            var last = params.get('last_name') || '';
+            var username = params.get('username') || '';
+            var id = params.get('id') || telegramId || '';
+
+            if (token || id) {
+                var ad = params.get('auth_date');
+                var h = params.get('hash');
+                var q = 'tg=1&id=' + encodeURIComponent(id);
+                if (ad) q += '&auth_date=' + encodeURIComponent(ad);
+                if (h) q += '&hash=' + encodeURIComponent(h);
+                if (first) q += '&first_name=' + encodeURIComponent(first);
+                if (last) q += '&last_name=' + encodeURIComponent(last);
+                if (username) q += '&username=' + encodeURIComponent(username);
+                var ph = params.get('photo_url');
+                if (ph) q += '&photo_url=' + encodeURIComponent(ph);
+                if (token) q += '&token=' + encodeURIComponent(token);
+                redirectToApp(q);
+                return;
+            }
+
+            var status = document.getElementById('status');
+            var openBot = document.getElementById('openBot');
+            // Если виджет не появился, подсказываем наиболее частую причину (неверный домен у бота).
+            setTimeout(function() {
+                var wrap = document.getElementById('telegram-widget-wrap');
+                if (!wrap.querySelector('iframe')) {
+                    status.textContent = 'Telegram виджет не инициализировался. Проверьте /setdomain: auth-ringme.web.app';
+                }
+            }, 2500);
+        })();
+    </script>
+</body>
+</html>

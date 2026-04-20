@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +8,7 @@ import '../firebase/firestore_schema.dart';
 import '../models/feed_post.dart';
 import 'auth/auth_service.dart';
 import 'image_optimization_service.dart';
+import 'like_notification_service.dart';
 
 /// Сервис постов ленты: создание, стрим, лайки.
 /// Фото храним в Firebase Storage, а в Firestore — только download URL в поле photoUrls.
@@ -128,7 +130,7 @@ class PostService {
     });
   }
 
-  /// Переключить лайк поста для текущего пользователя.
+  /// Переключить лайк поста для текущего пользователя (оптимистично на UI; сервер — источник истины).
   Future<void> toggleLike(String postId) async {
     final uid = _uid;
     if (uid == null) {
@@ -136,19 +138,101 @@ class PostService {
     }
 
     final ref = _firestore.collection(kPostsCollection).doc(postId);
+    var becameLiked = false;
+    String? authorId;
     await _firestore.runTransaction((tx) async {
       final snap = await tx.get(ref);
       if (!snap.exists) return;
       final data = snap.data()!;
+      authorId = data[kPostAuthorId]?.toString();
       final likedBy = List<String>.from((data[kPostLikedBy] as List?)?.map((e) => e.toString()) ?? []);
       final count = (data[kPostLikeCount] as int?) ?? 0;
-      if (likedBy.contains(uid)) {
+      final had = likedBy.contains(uid);
+      if (had) {
         likedBy.remove(uid);
+        becameLiked = false;
         tx.update(ref, {kPostLikedBy: likedBy, kPostLikeCount: count > 0 ? count - 1 : 0});
       } else {
         likedBy.add(uid);
+        becameLiked = true;
         tx.update(ref, {kPostLikedBy: likedBy, kPostLikeCount: count + 1});
       }
+    });
+    if (becameLiked && authorId != null && authorId != uid) {
+      unawaited(
+        LikeNotificationService().notifyPostLiked(recipientId: authorId!, postId: postId, actorId: uid),
+      );
+    }
+  }
+
+  Future<void> updatePost({
+    required String postId,
+    String? caption,
+    String? activityTitle,
+    String? activityDate,
+    String? activityVenue,
+    bool? activityVenueVerified,
+    String? activityPrice,
+    String? activityRating,
+    String? activityTag,
+  }) async {
+    final uid = _uid;
+    if (uid == null) throw StateError('Необходимо войти в аккаунт');
+    final ref = _firestore.collection(kPostsCollection).doc(postId);
+    final snap = await ref.get();
+    if (!snap.exists) return;
+    final author = snap.data()?[kPostAuthorId]?.toString();
+    if (author != uid && !await _auth.isAdmin()) {
+      throw StateError('Нет прав на редактирование');
+    }
+    final update = <String, dynamic>{};
+    if (caption != null) update[kPostCaption] = caption;
+    final type = snap.data()?[kPostType]?.toString() ?? 'personal';
+    if (type == 'activity') {
+      if (activityTitle != null) update[kPostActivityTitle] = activityTitle;
+      if (activityDate != null) update[kPostActivityDate] = activityDate;
+      if (activityVenue != null) update[kPostActivityVenue] = activityVenue;
+      if (activityVenueVerified != null) update[kPostActivityVenueVerified] = activityVenueVerified;
+      if (activityPrice != null) update[kPostActivityPrice] = activityPrice;
+      if (activityRating != null) update[kPostActivityRating] = activityRating;
+      if (activityTag != null) update[kPostActivityTag] = activityTag;
+    }
+    if (update.isEmpty) return;
+    await ref.update(update);
+  }
+
+  Future<void> deletePost(String postId) async {
+    final uid = _uid;
+    if (uid == null) throw StateError('Необходимо войти в аккаунт');
+    final ref = _firestore.collection(kPostsCollection).doc(postId);
+    final snap = await ref.get();
+    if (!snap.exists) return;
+    final author = snap.data()?[kPostAuthorId]?.toString();
+    if (author != uid && !await _auth.isAdmin()) {
+      throw StateError('Нет прав на удаление');
+    }
+    while (true) {
+      final page = await ref.collection(kPostCommentsSubcollection).limit(400).get();
+      if (page.docs.isEmpty) break;
+      final batch = _firestore.batch();
+      for (final d in page.docs) {
+        batch.delete(d.reference);
+      }
+      await batch.commit();
+    }
+    await ref.delete();
+  }
+
+  Future<void> reportPost({required String postId, required String reason}) async {
+    final uid = _uid;
+    if (uid == null) throw StateError('Необходимо войти в аккаунт');
+    final r = reason.trim();
+    if (r.isEmpty) throw ArgumentError('Укажите причину');
+    await _firestore.collection(kPostReportsCollection).add({
+      kReportPostId: postId,
+      kReportReporterId: uid,
+      kReportReason: r,
+      kReportCreatedAt: FieldValue.serverTimestamp(),
     });
   }
 }

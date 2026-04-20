@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../models/feed_user.dart';
 
 /// Одна карточка в ленте: фото, имя, возраст, город, дистанция, цель, теги, био, стрелка.
-class FeedCard extends StatelessWidget {
+class FeedCard extends StatefulWidget {
   final FeedUser user;
   final VoidCallback? onTapArrow;
-  final VoidCallback? onTapPhoto;
+  final void Function(int index)? onTapPhoto;
 
   const FeedCard({
     super.key,
@@ -15,10 +15,29 @@ class FeedCard extends StatelessWidget {
   });
 
   @override
+  State<FeedCard> createState() => _FeedCardState();
+}
+
+class _FeedCardState extends State<FeedCard> {
+  late final PageController _photoPager;
+  int _photoIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _photoPager = PageController();
+  }
+
+  @override
+  void dispose() {
+    _photoPager.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final photoUrl = user.photoUrls.isNotEmpty ? user.photoUrls.first : null;
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    final decodeW = (MediaQuery.sizeOf(context).width * dpr).round().clamp(400, 720);
+    final user = widget.user;
+    final photos = user.photoUrls;
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -42,20 +61,32 @@ class FeedCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  GestureDetector(
-                    onTap: onTapPhoto,
-                    child: photoUrl != null
-                        ? Image.network(
-                            photoUrl,
-                            fit: BoxFit.cover,
-                            filterQuality: FilterQuality.low,
-                            gaplessPlayback: true,
-                            cacheWidth: decodeW,
-                            cacheHeight: (decodeW * 1.35).round(),
-                            errorBuilder: (_, __, _) => _placeholder(),
-                          )
-                        : _placeholder(),
-                  ),
+                  if (photos.isNotEmpty)
+                    PageView.builder(
+                      controller: _photoPager,
+                      itemCount: photos.length,
+                      onPageChanged: (i) => setState(() => _photoIndex = i),
+                      itemBuilder: (_, i) {
+                        return GestureDetector(
+                          onTap: () => widget.onTapPhoto?.call(i),
+                          child: SizedBox.expand(
+                            child: Image.network(
+                              photos[i],
+                              fit: BoxFit.cover,
+                              alignment: Alignment.center,
+                              filterQuality: FilterQuality.high,
+                              gaplessPlayback: true,
+                              errorBuilder: (context, error, stackTrace) => _placeholder(),
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  else
+                    GestureDetector(
+                      onTap: () => widget.onTapPhoto?.call(0),
+                      child: _placeholder(),
+                    ),
                   // Верх: город, дистанция, цель
                   Positioned(
                     top: 12,
@@ -75,23 +106,40 @@ class FeedCard extends StatelessWidget {
                     ),
                   ),
                   // Индикатор фото (1 из N)
-                  if (user.photoUrls.length > 1)
+                  if (photos.length > 1)
                     Positioned(
-                      top: 12,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.black45,
-                            borderRadius: BorderRadius.circular(12),
+                      bottom: 14,
+                      left: 12,
+                      right: 12,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black45,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${_photoIndex + 1} из ${photos.length}',
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                            ),
                           ),
-                          child: Text(
-                            '1 из ${user.photoUrls.length}',
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                          const Spacer(),
+                          Row(
+                            children: List.generate(photos.length.clamp(0, 6), (i) {
+                              final active = i == _photoIndex;
+                              return Container(
+                                width: 6,
+                                height: 6,
+                                margin: const EdgeInsets.only(left: 4),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: active ? Colors.white : Colors.white54,
+                                ),
+                              );
+                            }),
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   // Низ: имя, возраст, стрелка
@@ -127,9 +175,9 @@ class FeedCard extends StatelessWidget {
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    if (onTapArrow != null)
+                                    if (widget.onTapArrow != null)
                                       GestureDetector(
-                                        onTap: onTapArrow,
+                                        onTap: widget.onTapArrow,
                                         child: Container(
                                           width: 36,
                                           height: 36,

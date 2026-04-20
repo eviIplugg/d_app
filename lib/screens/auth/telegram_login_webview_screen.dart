@@ -3,11 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../config/telegram_config.dart';
-import '../../models/profile_draft.dart';
-import '../../services/auth/auth_service.dart';
-import '../profile_create/name_screen.dart';
-import '../../navigation/auth_after_signin.dart';
-import '../welcome/welcome_screen.dart';
+import '../../config/web_hosts.dart';
+import '../../services/auth/telegram_auth_from_callback_uri.dart';
 
 /// Экран с официальным Telegram Login Widget. Данные только из Telegram.
 /// [linkOnly]: привязка к текущему аккаунту (настройки) — без анонимного входа.
@@ -22,8 +19,8 @@ class TelegramLoginWebViewScreen extends StatefulWidget {
 }
 
 class _TelegramLoginWebViewScreenState extends State<TelegramLoginWebViewScreen> {
-  static const _scheme = 'ringme';
-  static const _host = 'telegram';
+  static String get _scheme => telegramDeepLinkScheme;
+  static String get _host => telegramDeepLinkHost;
 
   bool _isProcessing = false;
   bool _externalOpened = false;
@@ -43,14 +40,9 @@ class _TelegramLoginWebViewScreenState extends State<TelegramLoginWebViewScreen>
     if (!isTelegramConfigured) return;
     _externalOpened = true;
 
-    final domain = telegramBotDomain.trim();
-    final url = domain.startsWith('http://') || domain.startsWith('https://')
-        ? domain
-        : 'https://$domain';
-
     try {
       // Не делаем `await`, чтобы не терять шанс на «пользовательское действие» в браузере.
-      launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication).then((ok) {
+      launchUrl(Uri.parse(telegramWidgetPageUrl), mode: LaunchMode.externalApplication).then((ok) {
         if (!ok && mounted) {
           setState(() => _externalOpened = false);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -97,11 +89,14 @@ class _TelegramLoginWebViewScreenState extends State<TelegramLoginWebViewScreen>
   </div>
   <script>
     function onTelegramAuth(user) {
-      var q = 'id=' + encodeURIComponent(user.id || '') +
-              '&first_name=' + encodeURIComponent(user.first_name || '') +
-              '&last_name=' + encodeURIComponent(user.last_name || '') +
-              '&username=' + encodeURIComponent(user.username || '');
-      window.location = '$_scheme://$_host?' + q;
+      var q = 'tg=1&id=' + encodeURIComponent(user.id || '') +
+              '&auth_date=' + encodeURIComponent(String(user.auth_date || '')) +
+              '&hash=' + encodeURIComponent(user.hash || '');
+      if (user.first_name) q += '&first_name=' + encodeURIComponent(user.first_name);
+      if (user.last_name) q += '&last_name=' + encodeURIComponent(user.last_name);
+      if (user.username) q += '&username=' + encodeURIComponent(user.username);
+      if (user.photo_url) q += '&photo_url=' + encodeURIComponent(user.photo_url);
+      window.location = '$_scheme://$_host/?' + q;
     }
   </script>
   <script async src="https://core.telegram.org/widget/login.js"></script>
@@ -110,28 +105,31 @@ class _TelegramLoginWebViewScreenState extends State<TelegramLoginWebViewScreen>
 ''';
   }
 
-  /// Добавляет https:// если в строке нет схемы (для Uri.parse и loadRequest).
-  static String _ensureScheme(String url) {
-    final s = url.trim().toLowerCase();
-    if (s.startsWith('https://') || s.startsWith('http://')) return url.trim();
-    return 'https://${url.trim()}';
+  static bool _isConsumerTelegramCallback(String url) {
+    final u = Uri.tryParse(url);
+    if (u == null) return false;
+    if (u.queryParameters['tg'] != '1') return false;
+    return u.origin == Uri.parse(kConsumerWebAppOrigin).origin;
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF111111) : const Color(0xFFF3F3F3);
+    final fg = isDark ? Colors.white : const Color(0xFF333333);
     if (kIsWeb && widget.linkOnly) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF3F3F3),
+        backgroundColor: bg,
         appBar: AppBar(
-          backgroundColor: const Color(0xFFF3F3F3),
+          backgroundColor: bg,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF333333)),
+            icon: Icon(Icons.arrow_back, color: fg),
             onPressed: () => Navigator.of(context).pop(),
           ),
-          title: const Text(
+          title: Text(
             'Привязка Telegram',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: fg),
           ),
         ),
         body: Center(
@@ -158,19 +156,22 @@ class _TelegramLoginWebViewScreenState extends State<TelegramLoginWebViewScreen>
       );
     }
 
-    final auth = AuthService();
-    final domain = telegramBotDomain.trim();
-    final baseUrl = domain.isEmpty
-        ? null
-        : _ensureScheme(domain.endsWith('/') ? domain : '$domain/');
-
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (req) {
+            final asUri = Uri.tryParse(req.url);
+            if (asUri != null && isTelegramAppCallbackUri(asUri)) {
+              _onTelegramCallback(context, req.url);
+              return NavigationDecision.prevent;
+            }
+            if (_isConsumerTelegramCallback(req.url)) {
+              _onTelegramCallback(context, req.url);
+              return NavigationDecision.prevent;
+            }
             if (req.url.startsWith('$_scheme://$_host')) {
-              _onTelegramCallback(context, req.url, auth);
+              _onTelegramCallback(context, req.url);
               return NavigationDecision.prevent;
             }
             return NavigationDecision.navigate;
@@ -178,24 +179,27 @@ class _TelegramLoginWebViewScreenState extends State<TelegramLoginWebViewScreen>
         ),
       );
 
-    if (baseUrl != null && baseUrl.isNotEmpty) {
-      controller.loadRequest(Uri.parse(baseUrl));
+    // Виджет Telegram должен открываться на домене, указанном в BotFather (/setdomain),
+    // иначе кнопка не отображается. Поэтому грузим страницу с auth-ringme хоста.
+    final pageUrl = telegramWidgetPageUrl.trim();
+    if (pageUrl.isNotEmpty) {
+      controller.loadRequest(Uri.parse(pageUrl));
     } else {
       controller.loadHtmlString(_html, baseUrl: 'https://core.telegram.org/');
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF3F3F3),
+        backgroundColor: bg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF333333)),
+          icon: Icon(Icons.arrow_back, color: fg),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           widget.linkOnly ? 'Привязка Telegram' : 'Вход через Telegram',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: fg),
         ),
       ),
       body: Stack(
@@ -213,123 +217,15 @@ class _TelegramLoginWebViewScreenState extends State<TelegramLoginWebViewScreen>
     );
   }
 
-  void _onTelegramCallback(BuildContext context, String url, AuthService auth) async {
+  Future<void> _onTelegramCallback(BuildContext context, String url) async {
     if (_isProcessing) return;
-    setState(() => _isProcessing = true);
-
-    final uri = Uri.parse(url);
-    final first = uri.queryParameters['first_name'] ?? '';
-    final last = uri.queryParameters['last_name'] ?? '';
-    final username = uri.queryParameters['username'] ?? '';
-    final id = uri.queryParameters['id'] ?? '';
-    final fullName = '$first $last'.trim();
-    final name = fullName.isEmpty ? (username.isNotEmpty ? username : 'Пользователь') : fullName;
-
-    try {
-      if (widget.linkOnly) {
-        final uid = auth.currentUserId;
-        if (!context.mounted) return;
-        if (uid == null) {
-          setState(() => _isProcessing = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Сначала войдите в аккаунт'), backgroundColor: Colors.orange),
-          );
-          return;
-        }
-        if (id.isEmpty) {
-          setState(() => _isProcessing = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Не удалось получить данные Telegram'), backgroundColor: Colors.red),
-          );
-          return;
-        }
-        final err = await auth.linkTelegramToCurrentUser(telegramUserId: id);
-        if (!context.mounted) return;
-        setState(() => _isProcessing = false);
-        if (err != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(err), backgroundColor: Colors.orange),
-          );
-          return;
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Telegram привязан'), backgroundColor: Colors.green),
-        );
-        Navigator.of(context).pop(true);
-        return;
-      }
-
-      final uid = await auth.signInAnonymouslyForTelegram();
-      if (!context.mounted) return;
-      if (uid == null) {
-        setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Не удалось войти. Включите Anonymous в Firebase Console → Authentication.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      if (id.isNotEmpty) {
-        final existing = await auth.findUserByTelegramId(id);
-        if (!context.mounted) return;
-        if (existing != null) {
-          final existingUid = existing['uid']?.toString();
-          if (existingUid != null && existingUid != uid) {
-            await auth.signOut();
-            if (!context.mounted) return;
-            setState(() => _isProcessing = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Этот Telegram уже привязан к другому аккаунту. Войдите на том устройстве.'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-            );
-            return;
-          }
-          if (existingUid == uid && auth.hasProfileWithName(existing)) {
-            setState(() => _isProcessing = false);
-            await AuthAfterSignIn.navigateFromProfile(context, auth, existing);
-            return;
-          }
-        }
-      }
-
-      await auth.saveTelegramUser(
-        uid: uid,
-        telegramName: name,
-        telegramUserId: id.isNotEmpty ? id : null,
-      );
-      if (!context.mounted) return;
-      final profile = await auth.getUserProfile(uid);
-      if (!context.mounted) return;
-      setState(() => _isProcessing = false);
-      if (!auth.hasProfileWithName(profile)) {
-        if (!context.mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute<void>(
-            builder: (context) => NameScreen(draft: ProfileDraft(name: name)),
-          ),
-        );
-        return;
-      }
-      await AuthAfterSignIn.navigateFromProfile(context, auth, profile);
-    } catch (e) {
-      if (!context.mounted) return;
-      setState(() => _isProcessing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ошибка входа: $e. Включите Anonymous в Firebase Console → Authentication.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    await runTelegramAuthFromCallbackUri(
+      context: context,
+      uri: Uri.parse(url),
+      linkOnly: widget.linkOnly,
+      onProcessing: (v) {
+        if (mounted) setState(() => _isProcessing = v);
+      },
+    );
   }
 }

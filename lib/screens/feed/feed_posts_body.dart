@@ -183,6 +183,7 @@ class _FeedPostsBodyState extends State<FeedPostsBody> {
               stream: _postService.streamPosts(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
+                  final theme = Theme.of(context);
                   return SliverFillRemaining(
                     child: Center(
                       child: Padding(
@@ -190,17 +191,17 @@ class _FeedPostsBodyState extends State<FeedPostsBody> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.cloud_off, size: 64, color: Colors.grey.shade400),
+                            Icon(Icons.cloud_off, size: 64, color: theme.colorScheme.outline),
                             const SizedBox(height: 16),
                             Text(
                               'Не удалось загрузить ленту',
-                              style: TextStyle(fontSize: 18, color: Colors.grey.shade800),
+                              style: theme.textTheme.titleMedium,
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 8),
                             Text(
                               snapshot.error?.toString() ?? 'Ошибка',
-                              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                               textAlign: TextAlign.center,
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
@@ -210,7 +211,6 @@ class _FeedPostsBodyState extends State<FeedPostsBody> {
                               onPressed: () => setState(() {}),
                               icon: const Icon(Icons.refresh),
                               label: const Text('Повторить'),
-                              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF81262B)),
                             ),
                           ],
                         ),
@@ -223,14 +223,15 @@ class _FeedPostsBodyState extends State<FeedPostsBody> {
                 }
                 final posts = snapshot.data ?? [];
                 if (posts.isEmpty) {
+                  final theme = Theme.of(context);
                   return SliverFillRemaining(
                     child: Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.photo_library_outlined, size: 64, color: Colors.grey.shade400),
+                          Icon(Icons.photo_library_outlined, size: 64, color: theme.colorScheme.outline),
                           const SizedBox(height: 16),
-                          Text('Пока нет постов', style: TextStyle(fontSize: 18, color: Colors.grey.shade700)),
+                          Text('Пока нет постов', style: theme.textTheme.titleMedium),
                           const SizedBox(height: 8),
                           TextButton.icon(
                             onPressed: _openCreatePost,
@@ -366,15 +367,15 @@ class _AddStoryChip extends StatelessWidget {
               height: 56,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.grey.shade200,
-                border: Border.all(color: Colors.grey.shade400, width: 2),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 2),
               ),
-              child: const Icon(Icons.add, color: Colors.white, size: 32),
+              child: Icon(Icons.add, color: Theme.of(context).colorScheme.primary, size: 32),
             ),
             const SizedBox(height: 6),
             Text(
               'Добавить',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -418,7 +419,7 @@ class _StoryAvatar extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),

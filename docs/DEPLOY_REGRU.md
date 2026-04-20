@@ -79,11 +79,7 @@ Flutter Web — одностраничное приложение. При обн
 
 ## 6. Альтернатива: Firebase Hosting
 
-В проекте уже есть `firebase.json` с таргетом **`crm`** (`public: build/web`). После `flutter build web` / CRM-сборки:
-
-```bash
-firebase deploy --only hosting:crm
-```
+См. **`docs/DEPLOY_RINGME_WEB_APP.md`**: CRM → `dating-app-34f38.web.app` (`hosting:crm`, сборка в `build/web_crm`); основное приложение и страница Telegram `/telegram.html` → `auth-ringme.web.app` (`hosting:consumer`, сборка в `build/web`).
 
 На REG.RU вы получаете полный контроль и один биллинг; Firebase Hosting удобен, если домен привязан к Google.
 

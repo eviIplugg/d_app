@@ -52,9 +52,9 @@ dependencies:
   path_provider: ^2.1.4
   flutter_image_compress: ^2.4.0
 
-  # Вход: телефон (Firebase), VK ID, Telegram (виджет)
-  vkid_flutter_sdk: 1.0.3
+  # Вход: телефон (Firebase), Telegram (виджет)
   webview_flutter: ^4.10.0
+  app_links: ^7.0.0
 
 dev_dependencies:
   flutter_test:

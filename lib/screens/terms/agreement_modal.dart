@@ -97,33 +97,52 @@ class AgreementModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sheetBg = isDark ? const Color(0xFF1A1A1A) : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF333333);
+    final textColor = isDark ? Colors.white70 : Colors.grey.shade800;
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: sheetBg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         children: [
           const SizedBox(height: 12),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white24 : Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF333333)))),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: titleColor),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.close, color: isDark ? Colors.white70 : Colors.black87),
+                  onPressed: () => Navigator.pop(context),
+                ),
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: isDark ? Colors.white12 : null),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: SelectableText(
                 body,
-                style: TextStyle(fontSize: 14, height: 1.5, color: Colors.grey.shade800),
+                style: TextStyle(fontSize: 14, height: 1.5, color: textColor),
               ),
             ),
           ),

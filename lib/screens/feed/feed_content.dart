@@ -117,12 +117,16 @@ class FeedContentState extends State<FeedContent> {
     );
   }
 
-  void _openPhotoGallery(FeedUser user) {
+  void _openPhotoGallery(FeedUser user, {int initialIndex = 0}) {
     if (user.photoUrls.isEmpty) return;
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (ctx) => _PhotoGalleryScreen(photos: user.photoUrls, name: user.name),
+        builder: (ctx) => _PhotoGalleryScreen(
+          photos: user.photoUrls,
+          name: user.name,
+          initialIndex: initialIndex.clamp(0, user.photoUrls.length - 1),
+        ),
       ),
     );
   }
@@ -203,7 +207,7 @@ class FeedContentState extends State<FeedContent> {
                 child: FeedCard(
                   user: _candidates[i],
                   onTapArrow: () => _openFullProfile(_candidates[i]),
-                  onTapPhoto: () => _openFullProfile(_candidates[i]),
+                  onTapPhoto: (photoIndex) => _openPhotoGallery(_candidates[i], initialIndex: photoIndex),
                 ),
               ),
             ),
@@ -218,6 +222,7 @@ class FeedContentState extends State<FeedContent> {
                 user: _candidates.first,
                 onSwipe: (like) => _onSwipe(_candidates.first, like),
                 onOpenProfile: () => _openFullProfile(_candidates.first),
+                onOpenPhoto: (photoIndex) => _openPhotoGallery(_candidates.first, initialIndex: photoIndex),
               ),
             ),
           ),
@@ -265,11 +270,17 @@ class FeedContentState extends State<FeedContent> {
 class _PhotoGalleryScreen extends StatelessWidget {
   final List<String> photos;
   final String name;
+  final int initialIndex;
 
-  const _PhotoGalleryScreen({required this.photos, required this.name});
+  const _PhotoGalleryScreen({
+    required this.photos,
+    required this.name,
+    required this.initialIndex,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final page = ValueNotifier<int>(initialIndex);
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -278,26 +289,44 @@ class _PhotoGalleryScreen extends StatelessWidget {
         title: Text('$name — ${photos.length} фото', style: const TextStyle(color: Colors.white, fontSize: 16)),
         leading: IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
       ),
-      body: PageView.builder(
-        itemCount: photos.length,
-        itemBuilder: (ctx, i) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('${i + 1} из ${photos.length}', style: const TextStyle(color: Colors.white54, fontSize: 14)),
-              const SizedBox(height: 16),
-              Expanded(
-                child: InteractiveViewer(
-                  child: Image.network(
-                    photos[i],
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, _) => const Icon(Icons.broken_image, size: 80, color: Colors.white54),
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: PageController(initialPage: initialIndex),
+            onPageChanged: (i) => page.value = i,
+            itemCount: photos.length,
+            itemBuilder: (ctx, i) => Center(
+              child: InteractiveViewer(
+                child: Image.network(
+                  photos[i],
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, _) => const Icon(Icons.broken_image, size: 80, color: Colors.white54),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 26,
+            child: Center(
+              child: ValueListenableBuilder<int>(
+                valueListenable: page,
+                builder: (_, index, __) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    '${index + 1} / ${photos.length}',
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

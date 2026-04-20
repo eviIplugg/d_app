@@ -54,10 +54,7 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
         const SnackBar(content: Text('Открываем Telegram авторизацию...'), backgroundColor: Colors.blueGrey),
       );
 
-      final url = telegramBotDomain.trim();
-      final uri = url.startsWith('http://') || url.startsWith('https://')
-          ? Uri.parse(url)
-          : Uri.parse('https://$url');
+      final uri = Uri.parse(telegramWidgetPageUrl);
 
       try {
         launchUrl(uri, mode: LaunchMode.externalApplication).then((ok) {
@@ -94,8 +91,12 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF111111) : const Color(0xFFF3F3F3);
+    final fg = isDark ? Colors.white : const Color(0xFF333333);
+    final sub = isDark ? Colors.white70 : Colors.grey.shade700;
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: bg,
       body: SafeArea(
         child: Stack(
           children: [
@@ -103,7 +104,7 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
               top: 16,
               left: 16,
               child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF333333)),
+                icon: Icon(Icons.arrow_back, color: fg),
                 onPressed: () {
                   if (Navigator.of(context).canPop()) Navigator.of(context).pop();
                 },
@@ -115,22 +116,23 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       'Регистрация',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF333333),
+                        color: fg,
                       ),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       'Выберите способ входа — дальше заполните профиль в приложении.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.35),
+                      style: TextStyle(fontSize: 14, color: sub, height: 1.35),
                     ),
                     const SizedBox(height: 40),
                     _AuthButton(
+                      isDark: isDark,
                       text: 'Войти по номеру телефона',
                       onPressed: () {
                         Navigator.push(
@@ -141,6 +143,7 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
                     ),
                     const SizedBox(height: 14),
                     _AuthButton(
+                      isDark: isDark,
                       text: 'Войти через Telegram',
                       onPressed: () => _openTelegram(context),
                       accentColor: const Color(0xFF0088CC),
@@ -157,21 +160,27 @@ class _AuthOptionsScreenState extends State<AuthOptionsScreen> {
 }
 
 class _AuthButton extends StatelessWidget {
+  final bool isDark;
   final String text;
   final VoidCallback onPressed;
   final Color? accentColor;
 
-  const _AuthButton({required this.text, required this.onPressed, this.accentColor});
+  const _AuthButton({
+    required this.isDark,
+    required this.text,
+    required this.onPressed,
+    this.accentColor,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -197,7 +206,7 @@ class _AuthButton extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: accentColor ?? const Color(0xFF333333),
+                    color: accentColor ?? (isDark ? Colors.white : const Color(0xFF333333)),
                   ),
                 ),
               ],
